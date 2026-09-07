@@ -160,6 +160,7 @@ enum Render {
         NSGraphicsContext.current = NSGraphicsContext(cgContext: cg, flipped: true)
         let ganz = CGRect(origin: .zero, size: doc.groesse)
         doc.bild.draw(in: ganz)
+        NSBezierPath(rect: ganz).setClip()
         for f in doc.formen { zeichne(f, doc: doc) }
         NSGraphicsContext.restoreGraphicsState()
 

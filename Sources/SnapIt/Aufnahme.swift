@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 
 /// Bildschirmaufnahme über das Systemwerkzeug screencapture. Das erspart
 /// eigene Overlay-Fenster und liefert die vertraute Auswahl mit Lupe,
@@ -7,7 +8,34 @@ enum Aufnahme {
 
     enum Art { case bereich, fenster, vollbild }
 
+    /// Prüft die Freigabe zur Bildschirmaufnahme, bevor screencapture startet.
+    /// Ohne sie liefert screencapture kommentarlos nichts, und der Nutzer sieht
+    /// nur, dass „nichts passiert".
+    @discardableResult
+    static func berechtigungPruefen() -> Bool {
+        if CGPreflightScreenCaptureAccess() { return true }
+        // Löst beim ersten Mal den Systemdialog aus; danach nur noch false.
+        if CGRequestScreenCaptureAccess() { return true }
+
+        let a = NSAlert()
+        a.messageText = "Snap it darf den Bildschirm nicht aufnehmen"
+        a.informativeText = """
+            Die Freigabe fehlt oder gehört noch zu einer früheren Fassung der App.
+
+            Setze in den Systemeinstellungen unter „Bildschirm- & Systemaudioaufnahme"             den Haken bei Snap it. Steht dort bereits ein Haken, nimm ihn einmal weg             und setze ihn neu — dann verbindet macOS ihn mit der laufenden Fassung.
+            """
+        a.addButton(withTitle: "Einstellungen öffnen")
+        a.addButton(withTitle: "Später")
+        NSApp.activate(ignoringOtherApps: true)
+        if a.runModal() == .alertFirstButtonReturn,
+           let u = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+            NSWorkspace.shared.open(u)
+        }
+        return false
+    }
+
     static func starten(_ art: Art, fertig: @escaping (Dokument?) -> Void) {
+        guard berechtigungPruefen() else { fertig(nil); return }
         let ziel = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("snapit-\(UUID().uuidString).png")
 

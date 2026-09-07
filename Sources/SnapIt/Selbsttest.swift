@@ -38,6 +38,18 @@ enum Selbsttest {
         flaeche.mouseUp(with: ereignis(.leftMouseUp, b, in: flaeche))
     }
 
+    /// Zug mit unruhiger Hand: die Höhe schwankt um bis zu 12 Punkte.
+    private static func wackeln(_ flaeche: Zeichenflaeche, von a: CGPoint, nach b: CGPoint) {
+        flaeche.mouseDown(with: ereignis(.leftMouseDown, a, in: flaeche))
+        for i in 1...8 {
+            let t = CGFloat(i) / 8
+            let p = CGPoint(x: a.x + (b.x - a.x)*t,
+                            y: a.y + (b.y - a.y)*t + (i % 2 == 0 ? 12 : -9))
+            flaeche.mouseDragged(with: ereignis(.leftMouseDragged, p, in: flaeche))
+        }
+        flaeche.mouseUp(with: ereignis(.leftMouseUp, b, in: flaeche))
+    }
+
     static func starten(_ quelle: URL, ziel: URL) -> Int {
         guard let doc = Aufnahme.laden(quelle) else {
             print("Bild nicht lesbar"); return 1
@@ -121,6 +133,29 @@ enum Selbsttest {
         pruefe("Werkzeug springt danach auf Auswahl", flaeche.werkzeug == .auswahl)
         doc.zurueckNehmen()
         pruefe("Zuschnitt ist rücknehmbar", doc.groesse == vorGroesse)
+
+        print("\nZeichnen bleibt im Bild")
+        flaeche.werkzeug = .pfeil
+        let weitDraussen = CGPoint(x: flaeche.bildRect.minX - 220, y: flaeche.bildRect.minY - 120)
+        ziehen(flaeche, von: weitDraussen, nach: mitte)
+        if let f = doc.formen.last {
+            let imBild = f.p1.x >= 0 && f.p1.y >= 0
+                && f.p1.x <= doc.groesse.width && f.p1.y <= doc.groesse.height
+            pruefe("Zug von außerhalb wird an die Bildkante geholt", imBild)
+        } else {
+            pruefe("Zug von außerhalb legt eine Form an", false)
+        }
+
+        print("\nMarker")
+        flaeche.werkzeug = .marker
+        wackeln(flaeche, von: CGPoint(x: mitte.x - 140, y: mitte.y),
+                nach: CGPoint(x: mitte.x + 140, y: mitte.y))
+        if let m = doc.formen.last, m.werkzeug == .marker, m.punkte.count > 2 {
+            let hoehen = Set(m.punkte.map { ($0.y * 100).rounded() })
+            pruefe("Marker läuft trotz unruhiger Hand waagerecht", hoehen.count == 1)
+        } else {
+            pruefe("Marker legt eine Form an", false)
+        }
 
         print("\nExport")
         let fertig = Render.rendern(doc)

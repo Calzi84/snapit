@@ -33,6 +33,25 @@ final class Zeichenflaeche: NSView {
         self.doc = doc
         super.init(frame: .zero)
         wantsLayer = true
+        zeilenErkennen()
+    }
+
+    /// Sucht die Textzeilen im Bild. Läuft nebenher; bis das Ergebnis da ist,
+    /// zieht der Marker einfach waagerecht.
+    func zeilenErkennen() {
+        textzeilen = []
+        Texterkennung.zeilen(doc.bild) { [weak self] zeilen in
+            self?.textzeilen = zeilen
+        }
+    }
+
+    /// Textzeile unter einem Punkt, mit etwas Toleranz nach oben und unten.
+    private func zeileBei(_ p: CGPoint) -> CGRect? {
+        let treffer = textzeilen.filter {
+            p.x >= $0.minX - $0.height && p.x <= $0.maxX + $0.height
+                && p.y >= $0.minY - $0.height*0.6 && p.y <= $0.maxY + $0.height*0.6
+        }
+        return treffer.min { abs($0.midY - p.y) < abs($1.midY - p.y) }
     }
     required init?(coder: NSCoder) { fatalError() }
 
@@ -63,9 +82,13 @@ final class Zeichenflaeche: NSView {
                       y: (b.minY + (b.height - h)/2).rounded(), width: w, height: h)
     }
 
+    /// Rechnet einen Punkt der Ansicht in Bildpixel um und hält ihn im Bild.
+    /// Ohne die Begrenzung lässt sich neben das Bild malen; beim Sichern fehlt
+    /// dieser Teil dann, weil nur die Bildfläche exportiert wird.
     private func nachBild(_ p: CGPoint) -> CGPoint {
         let r = bildRect, s = max(skala, 0.0001)
-        return CGPoint(x: (p.x - r.minX)/s, y: (p.y - r.minY)/s)
+        return CGPoint(x: min(max((p.x - r.minX)/s, 0), doc.groesse.width),
+                       y: min(max((p.y - r.minY)/s, 0), doc.groesse.height))
     }
 
     private func nachView(_ p: CGPoint) -> CGPoint {
@@ -93,6 +116,7 @@ final class Zeichenflaeche: NSView {
         ctx.imageInterpolation = .high
 
         doc.bild.draw(in: CGRect(origin: .zero, size: doc.groesse))
+        NSBezierPath(rect: CGRect(origin: .zero, size: doc.groesse)).setClip()
         for f in doc.formen { Render.zeichne(f, doc: doc) }
         if let a = aktuelle, a.werkzeug != .zuschnitt { Render.zeichne(a, doc: doc) }
         ctx.restoreGraphicsState()
@@ -158,9 +182,24 @@ final class Zeichenflaeche: NSView {
             delegat?.zustandGeaendert()
             needsDisplay = true
 
-        case .stift, .marker:
-            let f = Form(werkzeug: werkzeug, farbe: farbe, staerke: staerke, p1: p, p2: p)
+        case .stift:
+            let f = Form(werkzeug: .stift, farbe: farbe, staerke: staerke, p1: p, p2: p)
             f.punkte = [p]
+            aktuelle = f
+
+        case .marker:
+            // Auf die Textzeile einrasten: Höhe und Dicke kommen aus der Zeile,
+            // damit ein wackeliger Zug trotzdem sauber über der Zeile liegt.
+            let f = Form(werkzeug: .marker, farbe: farbe, staerke: staerke, p1: p, p2: p)
+            if let z = zeileBei(p) {
+                markerHoehe = z.midY
+                f.staerke = max(z.height * 1.02, 6) / 4.5   // Render zeichnet staerke × 4,5
+            } else {
+                markerHoehe = p.y
+            }
+            let start = CGPoint(x: p.x, y: markerHoehe ?? p.y)
+            f.p1 = start
+            f.punkte = [start]
             aktuelle = f
 
         default:
@@ -181,7 +220,9 @@ final class Zeichenflaeche: NSView {
         }
 
         guard let f = aktuelle else { return }
-        if f.werkzeug == .stift || f.werkzeug == .marker {
+        if f.werkzeug == .marker {
+            f.punkte.append(CGPoint(x: p.x, y: markerHoehe ?? p.y))
+        } else if f.werkzeug == .stift {
             f.punkte.append(p)
         } else {
             var ziel = p
@@ -204,7 +245,7 @@ final class Zeichenflaeche: NSView {
     }
 
     override func mouseUp(with e: NSEvent) {
-        defer { aktuelle = nil; needsDisplay = true }
+        defer { aktuelle = nil; markerHoehe = nil; needsDisplay = true }
         if werkzeug == .auswahl {
             if hatGemerkt { delegat?.zustandGeaendert() }
             return
@@ -213,6 +254,7 @@ final class Zeichenflaeche: NSView {
 
         if f.werkzeug == .zuschnitt {
             doc.zuschneiden(auf: f.rechteck)
+            zeilenErkennen()
             delegat?.werkzeugZuruecksetzen()
             delegat?.zustandGeaendert()
             return
@@ -284,6 +326,11 @@ final class Zeichenflaeche: NSView {
     }
 
     private var textPosition: CGPoint = .zero
+
+    /// Lagen der erkannten Textzeilen, für das Einrasten des Markers.
+    private var textzeilen: [CGRect] = []
+    /// Höhe, auf die der laufende Markerzug eingerastet ist.
+    private var markerHoehe: CGFloat?
 
     /// Freiraum, den Titelleiste und Glasleiste beanspruchen.
     var einzugOben: CGFloat = 0

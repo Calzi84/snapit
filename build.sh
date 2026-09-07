@@ -50,8 +50,18 @@ cat > "$APP/Contents/Info.plist" << PLIST
 </plist>
 PLIST
 
-# Ad-hoc-Signatur: ohne sie beanstandet Gatekeeper die App bei jedem Start.
-codesign --force --deep --sign - "$APP" 2>/dev/null || echo "  (Signieren übersprungen)"
+# Mit fester Identität signieren. Bei einer Ad-hoc-Signatur haengt die
+# Berechtigung zur Bildschirmaufnahme am Code-Hash und muss nach jedem Build
+# neu erteilt werden; mit Zertifikat bleibt sie ueber Updates hinweg bestehen.
+IDENTITAET="${SNAPIT_IDENTITAET:-Navion Snap it}"
+if security find-identity -v -p codesigning 2>/dev/null | grep -q "$IDENTITAET"; then
+    codesign --force --deep --options runtime --sign "$IDENTITAET" "$APP"
+    echo "▸ Signiert mit: $IDENTITAET"
+else
+    codesign --force --deep --sign - "$APP" 2>/dev/null || true
+    echo "▸ WARNUNG: Zertifikat \"$IDENTITAET\" fehlt, nur ad hoc signiert."
+    echo "  Die Freigabe zur Bildschirmaufnahme muss dann nach jedem Build neu erteilt werden."
+fi
 
 echo "▸ Fertig: $APP"
 
