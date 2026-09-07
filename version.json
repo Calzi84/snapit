@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
-  "notizen": "Snap it erscheint im Dock, solange ein Fenster offen ist — so geht der Editor nicht mehr hinter anderen Fenstern verloren.",
-  "download": "https://github.com/Calzi84/snapit/releases/download/v1.2.0/SnapIt-1.2.0.zip"
+  "version": "1.2.1",
+  "notizen": "Normaler Mauszeiger über der Werkzeugleiste. Sichern lässt das Fenster offen. Kein doppelter Hinweis mehr bei fehlender Bildschirmfreigabe.",
+  "download": "https://github.com/Calzi84/snapit/releases/download/v1.2.1/SnapIt-1.2.1.zip"
 }
