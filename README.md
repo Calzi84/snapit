@@ -22,10 +22,17 @@ verschiebbar und löschbar, bis gesichert wird.
 
 ## Installation
 
-Voraussetzung ist Xcode oder die Command Line Tools (`xcode-select --install`).
+Für die Weitergabe an andere: **[INSTALLATION.md](INSTALLATION.md)** — ein
+Befehl oder ein Disk-Image, ohne Entwicklerwerkzeuge auf dem Zielrechner.
 
 ```bash
-git clone <repo-adresse> snapit
+curl -fsSL https://raw.githubusercontent.com/Calzi84/snapit/main/install.sh | bash
+```
+
+Zum Selberbauen (braucht Xcode oder die Command Line Tools):
+
+```bash
+git clone https://github.com/Calzi84/snapit.git
 cd snapit
 ./build.sh install
 ```
@@ -75,12 +82,23 @@ Das baut die App, packt sie, legt ein GitHub-Release an und schreibt die
 `version.json` fort. Auf den anderen Macs erscheint der Hinweis beim nächsten
 Start.
 
-**Zur Signatur:** `build.sh` signiert die App nur ad hoc. Für die Verteilung an
-mehrere Rechner ohne Gatekeeper-Warnung braucht es ein Developer-ID-Zertifikat
-und eine Notarisierung. Ohne das muss die App auf jedem Mac einmal über
-_Rechtsklick › Öffnen_ freigegeben werden — und die Freigabe zur
-Bildschirmaufnahme wird nach einem Update erneut abgefragt, weil sich die
-Signatur bei jedem Build ändert.
+**Zur Signatur:** `build.sh` signiert mit dem selbstsignierten Zertifikat
+„Navion Snap it" aus dem Anmelde-Schlüsselbund. Das ist wichtig: Bei einer
+Ad-hoc-Signatur hängt die Freigabe zur Bildschirmaufnahme am Code-Hash und wird
+nach jedem Build neu abgefragt. Mit fester Identität lautet die Regel
+
+```
+identifier "de.navion.snapit" and certificate root = H"6b8803…"
+```
+
+und bleibt über alle Fassungen gleich — die Freigabe übersteht damit Updates.
+Fehlt das Zertifikat, weicht `build.sh` auf ad hoc aus und warnt.
+
+Der private Schlüssel wird nur zum Signieren gebraucht und liegt außerhalb des
+Repos. Auf den Rechnern der Empfänger muss nichts installiert werden, dort wird
+die Signatur nur geprüft. Eine Notarisierung durch Apple (Developer ID, 99 $/Jahr)
+würde zusätzlich die einmalige Gatekeeper-Rückfrage beim Laden über den Browser
+ersparen.
 
 ## Aufbau
 
