@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
-  "notizen": "Erste Fassung: Aufnahme über Tastenkürzel, Werkzeugleiste im Glasstil von macOS 26, Texterkennung, Ideen-Ablage.",
-  "download": "https://github.com/Calzi84/snapit/releases/download/v1.0.0/SnapIt-1.0.0.zip"
+  "version": "1.0.1",
+  "notizen": "Zeichnen verschob das Fenster statt zu zeichnen — behoben. Dazu acht Befunde aus dem Code-Review: Notiz und Datum auf den Ideen-Kacheln, lesbare Meldungen, verlässliche Update-Prüfung, Nummerierung nach Rücknahme.",
+  "download": "https://github.com/Calzi84/snapit/releases/download/v1.0.1/SnapIt-1.0.1.zip"
 }
