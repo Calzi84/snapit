@@ -21,15 +21,12 @@ enum Aktualisierung {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
     }
 
+    /// Steht in der Info.plist und wird beim Bauen gesetzt — für die Nutzer
+    /// gibt es dazu bewusst keine Einstellung.
     static var quelle: URL? {
-        if let s = UserDefaults.standard.string(forKey: "updateURL"), !s.isEmpty {
-            return URL(string: s)
-        }
-        if let s = Bundle.main.infoDictionary?["SnapItUpdateURL"] as? String,
-           !s.isEmpty, !s.hasPrefix("HIER") {
-            return URL(string: s)
-        }
-        return nil
+        guard let s = Bundle.main.infoDictionary?["SnapItUpdateURL"] as? String,
+              !s.isEmpty else { return nil }
+        return URL(string: s)
     }
 
     static var automatisch: Bool {
@@ -48,8 +45,8 @@ enum Aktualisierung {
     static func pruefen(sichtbar: Bool) {
         guard let url = quelle else {
             if sichtbar {
-                melden("Kein Update-Kanal eingerichtet",
-                       "In den Einstellungen lässt sich die Adresse der version.json aus dem Repo eintragen.")
+                melden("Kein Update-Kanal hinterlegt",
+                       "Diese Fassung wurde ohne Update-Adresse gebaut.")
             }
             return
         }

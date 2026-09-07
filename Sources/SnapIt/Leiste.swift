@@ -167,6 +167,8 @@ final class Leiste: NSView {
 
     override var mouseDownCanMoveWindow: Bool { false }
 
+    override func resetCursorRects() { addCursorRect(bounds, cursor: .arrow) }
+
     override init(frame: NSRect) {
         glas = Theme.glas(radius: Theme.leisteHoehe/2)
         zurueckKnopf = WerkzeugKnopf(bild: symbol(["arrow.uturn.backward"]), hinweis: "Zurücknehmen (⌘Z)")

@@ -361,6 +361,8 @@ final class Zeichenflaeche: NSView {
         window?.invalidateCursorRects(for: self)
     }
 
+    /// Nur über dem Bild ein Werkzeugzeiger. Die Fläche reicht unter die
+    /// Glasleiste, dort gehört der gewöhnliche Mauszeiger hin.
     override func resetCursorRects() {
         let c: NSCursor
         switch werkzeug {
@@ -368,6 +370,6 @@ final class Zeichenflaeche: NSView {
         case .text:    c = .iBeam
         default:       c = .crosshair
         }
-        addCursorRect(bounds, cursor: c)
+        addCursorRect(bildRect, cursor: c)
     }
 }

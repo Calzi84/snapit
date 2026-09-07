@@ -38,6 +38,30 @@ if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--vorschau" {
     app.run()
 }
 
+// Aufnahme des Einstellungsfensters, zur Layoutpruefung
+if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--vorschau-einstellungen" {
+    let ziel = URL(fileURLWithPath: CommandLine.arguments[2])
+    let app = NSApplication.shared
+    app.setActivationPolicy(.accessory)
+    let f = EinstellungenFenster()
+    f.showWindow(nil)
+    f.window?.makeKeyAndOrderFront(nil)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+        guard let inhalt = f.window?.contentView else { exit(1) }
+        // Ohne eigenen Grund bleibt die Aufnahme weiss - und die helle Schrift
+        // des Dunkelmodus damit unsichtbar.
+        inhalt.wantsLayer = true
+        inhalt.layer?.backgroundColor = NSColor(srgbRed: 0.13, green: 0.13, blue: 0.135, alpha: 1).cgColor
+        inhalt.displayIfNeeded()
+        guard let rep = inhalt.bitmapImageRepForCachingDisplay(in: inhalt.bounds) else { exit(1) }
+        inhalt.cacheDisplay(in: inhalt.bounds, to: rep)
+        try? rep.representation(using: .png, properties: [:])?.write(to: ziel)
+        print("Vorschau: \(ziel.path)")
+        exit(0)
+    }
+    app.run()
+}
+
 if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--selbsttest" {
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)

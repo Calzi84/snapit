@@ -66,14 +66,12 @@ final class KuerzelFeld: NSView {
     }
 }
 
-final class EinstellungenFenster: NSWindowController, NSTextFieldDelegate, NSWindowDelegate {
+final class EinstellungenFenster: NSWindowController, NSWindowDelegate {
 
     private let bilderPfad = NSTextField(labelWithString: "")
     private let ideenPfad = NSTextField(labelWithString: "")
-    private let updateFeld = NSTextField()
-
     private static let breite: CGFloat = 580
-    private static let hoehe: CGFloat = 470
+    private static let hoehe: CGFloat = 440
 
     init() {
         let fenster = NSWindow(contentRect: NSRect(x: 0, y: 0,
@@ -189,29 +187,18 @@ final class EinstellungenFenster: NSWindowController, NSTextFieldDelegate, NSWin
         ueberschrift("UPDATES")
         schalter("Täglich nach neuen Fassungen sehen", an: Aktualisierung.automatisch,
                  aktion: #selector(autoGeschaltet))
-        y -= 6
-
-        updateFeld.stringValue = UserDefaults.standard.string(forKey: "updateURL")
-            ?? (Bundle.main.infoDictionary?["SnapItUpdateURL"] as? String ?? "")
-        updateFeld.placeholderString = "https://raw.githubusercontent.com/…/version.json"
-        updateFeld.font = NSFont.systemFont(ofSize: 11)
-        updateFeld.frame = NSRect(x: 24, y: y, width: 400, height: 22)
-        updateFeld.target = self
-        updateFeld.action = #selector(updateURLGeaendert)
-        updateFeld.delegate = self
-        inhalt.addSubview(updateFeld)
-
-        let jetzt = NSButton(title: "Jetzt prüfen", target: self, action: #selector(jetztPruefen))
-        jetzt.frame = NSRect(x: 434, y: y - 3, width: 122, height: 28)
-        jetzt.bezelStyle = .rounded
-        inhalt.addSubview(jetzt)
-        y -= 24
+        y -= 4
 
         let version = NSTextField(labelWithString: "Installiert: Version \(Aktualisierung.eigeneVersion)")
-        version.font = NSFont.systemFont(ofSize: 11)
-        version.textColor = .tertiaryLabelColor
-        version.frame = NSRect(x: 24, y: y, width: 400, height: 16)
+        version.font = NSFont.systemFont(ofSize: 12)
+        version.textColor = .secondaryLabelColor
+        version.frame = NSRect(x: 24, y: y + 4, width: 300, height: 18)
         inhalt.addSubview(version)
+
+        let jetzt = NSButton(title: "Jetzt prüfen", target: self, action: #selector(jetztPruefen))
+        jetzt.frame = NSRect(x: 434, y: y, width: 122, height: 28)
+        jetzt.bezelStyle = .rounded
+        inhalt.addSubview(jetzt)
 
         pfadeAuffrischen()
     }
@@ -263,15 +250,5 @@ final class EinstellungenFenster: NSWindowController, NSTextFieldDelegate, NSWin
     @objc private func kopierenGeschaltet(_ s: NSButton) { Einstellungen.geteilt.nachSichernKopieren = s.state == .on }
     @objc private func finderGeschaltet(_ s: NSButton) { Einstellungen.geteilt.imFinderZeigen = s.state == .on }
     @objc private func autoGeschaltet(_ s: NSButton) { Aktualisierung.automatisch = s.state == .on }
-    /// Auch ohne Eingabetaste sichern — sonst geht die Adresse beim Schließen verloren.
-    func controlTextDidChange(_ n: Notification) { updateURLGeaendert() }
-    func controlTextDidEndEditing(_ n: Notification) { updateURLGeaendert() }
-
-    @objc private func updateURLGeaendert() {
-        UserDefaults.standard.set(updateFeld.stringValue.trimmingCharacters(in: .whitespaces), forKey: "updateURL")
-    }
-    @objc private func jetztPruefen() {
-        updateURLGeaendert()
-        Aktualisierung.pruefen(sichtbar: true)
-    }
+    @objc private func jetztPruefen() { Aktualisierung.pruefen(sichtbar: true) }
 }

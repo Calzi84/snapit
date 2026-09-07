@@ -98,6 +98,8 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
                               height: Theme.leisteHoehe)
         leiste.needsLayout = true
         flaeche.needsDisplay = true
+        window?.invalidateCursorRects(for: flaeche)
+        window?.invalidateCursorRects(for: leiste)
     }
 
     func windowDidResize(_ n: Notification) { anordnen() }
@@ -203,9 +205,7 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
             if Einstellungen.geteilt.imFinderZeigen {
                 NSWorkspace.shared.activateFileViewerSelecting([ziel])
             }
-            zeigeMeldung("Gesichert in \(ziel.deletingLastPathComponent().lastPathComponent)") {
-                self.close()
-            }
+            zeigeMeldung("Gesichert in \(ziel.deletingLastPathComponent().lastPathComponent)")
         } catch {
             zeigeMeldung("Konnte nicht sichern: \(error.localizedDescription)")
         }
@@ -220,7 +220,7 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
         panel.beginSheetModal(for: window!) { antwort in
             guard antwort == .OK, let url = panel.url else { return }
             try? daten.write(to: url)
-            self.zeigeMeldung("Gesichert") { self.close() }
+            self.zeigeMeldung("Gesichert")
         }
     }
 
@@ -238,7 +238,7 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
         alarm.beginSheetModal(for: window!) { antwort in
             guard antwort == .alertFirstButtonReturn else { return }
             if Ideenablage.sichern(bild, notiz: feld.stringValue) != nil {
-                self.zeigeMeldung("Als Idee gemerkt") { self.close() }
+                self.zeigeMeldung("Als Idee gemerkt")
             } else {
                 self.zeigeMeldung("Konnte die Idee nicht sichern")
             }
