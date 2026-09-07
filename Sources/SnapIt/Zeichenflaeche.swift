@@ -34,6 +34,8 @@ final class Zeichenflaeche: NSView {
 
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
+    /// Ohne das verschiebt ein Zug auf der Fläche das Fenster, statt zu zeichnen.
+    override var mouseDownCanMoveWindow: Bool { false }
 
     // MARK: – Umrechnung
 

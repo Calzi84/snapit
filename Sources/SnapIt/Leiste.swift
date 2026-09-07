@@ -165,6 +165,8 @@ final class Leiste: NSView {
     private let kopierenKnopf: AktionsKnopf
     private let sichernKnopf: AktionsKnopf
 
+    override var mouseDownCanMoveWindow: Bool { false }
+
     override init(frame: NSRect) {
         glas = Theme.glas(radius: Theme.leisteHoehe/2)
         zurueckKnopf = WerkzeugKnopf(bild: symbol(["arrow.uturn.backward"]), hinweis: "Zurücknehmen (⌘Z)")

@@ -34,7 +34,6 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
         fenster.title = "Snap it"
         fenster.titlebarAppearsTransparent = true
         fenster.titleVisibility = .hidden
-        fenster.isMovableByWindowBackground = true
         fenster.backgroundColor = Theme.fensterBG
         fenster.appearance = NSAppearance(named: .darkAqua)
         fenster.minSize = NSSize(width: Leiste.mindestBreite, height: 320)
