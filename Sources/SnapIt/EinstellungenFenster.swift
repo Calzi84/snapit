@@ -66,7 +66,7 @@ final class KuerzelFeld: NSView {
     }
 }
 
-final class EinstellungenFenster: NSWindowController, NSTextFieldDelegate {
+final class EinstellungenFenster: NSWindowController, NSTextFieldDelegate, NSWindowDelegate {
 
     private let bilderPfad = NSTextField(labelWithString: "")
     private let ideenPfad = NSTextField(labelWithString: "")
@@ -84,9 +84,21 @@ final class EinstellungenFenster: NSWindowController, NSTextFieldDelegate {
         fenster.center()
         fenster.appearance = NSAppearance(named: .darkAqua)
         super.init(window: fenster)
+        fenster.delegate = self
         aufbauen()
     }
     required init?(coder: NSCoder) { fatalError() }
+
+    private var gezaehlt = false
+
+    override func showWindow(_ sender: Any?) {
+        if !gezaehlt { gezaehlt = true; Fensterwacht.geoeffnet() }
+        super.showWindow(sender)
+    }
+
+    func windowWillClose(_ n: Notification) {
+        if gezaehlt { gezaehlt = false; Fensterwacht.geschlossen() }
+    }
 
     private func aufbauen() {
         guard let inhalt = window?.contentView else { return }

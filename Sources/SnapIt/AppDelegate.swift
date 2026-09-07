@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ n: Notification) {
         Einstellungen.geteilt.ordnerSicherstellen()
+        Fensterwacht.menueAufbauen()
         menueleisteAufbauen()
         hotkeySetzen()
         NotificationCenter.default.addObserver(self, selector: #selector(hotkeySetzen),

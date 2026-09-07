@@ -146,9 +146,16 @@ final class IdeenFenster: NSWindowController, NSWindowDelegate {
     }
     required init?(coder: NSCoder) { fatalError() }
 
+    private var gezaehlt = false
+
     override func showWindow(_ sender: Any?) {
+        if !gezaehlt { gezaehlt = true; Fensterwacht.geoeffnet() }
         super.showWindow(sender)
         auffrischen()
+    }
+
+    func windowWillClose(_ n: Notification) {
+        if gezaehlt { gezaehlt = false; Fensterwacht.geschlossen() }
     }
 
     @objc private func auffrischen() {

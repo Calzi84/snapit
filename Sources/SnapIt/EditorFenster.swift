@@ -56,6 +56,7 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
         zustandGeaendert()
 
         EditorFenster.offene.append(self)
+        Fensterwacht.geoeffnet()
     }
     required init?(coder: NSCoder) { fatalError() }
 
@@ -112,6 +113,7 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
     func windowWillClose(_ n: Notification) {
         if let m = monitor { NSEvent.removeMonitor(m); monitor = nil }
         EditorFenster.offene.removeAll { $0 === self }
+        Fensterwacht.geschlossen()
     }
 
     func zustandGeaendert() {
