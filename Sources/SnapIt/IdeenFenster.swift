@@ -46,7 +46,7 @@ final class IdeeKachel: NSView {
             NSGraphicsContext.restoreGraphicsState()
         }
 
-        let notiz = idee.notiz.isEmpty ? "Ohne Notiz" : idee.notiz
+        let notiz = idee.notiz.isEmpty ? "Ohne Namen" : idee.notiz
         let attr: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 12, weight: .medium),
             .foregroundColor: idee.notiz.isEmpty ? NSColor.tertiaryLabelColor : NSColor.labelColor,
@@ -76,7 +76,7 @@ final class IdeeKachel: NSView {
         let m = NSMenu()
         m.addItem(withTitle: "Öffnen", action: #selector(oeffnen), keyEquivalent: "").target = self
         m.addItem(withTitle: "Im Finder zeigen", action: #selector(imFinder), keyEquivalent: "").target = self
-        m.addItem(withTitle: "Notiz ändern …", action: #selector(notizAendern), keyEquivalent: "").target = self
+        m.addItem(withTitle: "Umbenennen …", action: #selector(notizAendern), keyEquivalent: "").target = self
         m.addItem(.separator())
         m.addItem(withTitle: "In den Papierkorb", action: #selector(loeschen), keyEquivalent: "").target = self
         return m
@@ -92,7 +92,7 @@ final class IdeeKachel: NSView {
         let feld = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
         feld.stringValue = idee.notiz
         let a = NSAlert()
-        a.messageText = "Notiz ändern"
+        a.messageText = "Idee umbenennen"
         a.accessoryView = feld
         a.addButton(withTitle: "Sichern")
         a.addButton(withTitle: "Abbrechen")

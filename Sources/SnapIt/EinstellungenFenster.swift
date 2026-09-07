@@ -70,8 +70,10 @@ final class EinstellungenFenster: NSWindowController, NSWindowDelegate {
 
     private let bilderPfad = NSTextField(labelWithString: "")
     private let ideenPfad = NSTextField(labelWithString: "")
+    private let kuerzelHinweis = NSTextField(labelWithString: "")
+    private let systemKnopf = NSButton(title: "Systemeinstellungen öffnen", target: nil, action: nil)
     private static let breite: CGFloat = 580
-    private static let hoehe: CGFloat = 440
+    private static let hoehe: CGFloat = 476
 
     init() {
         let fenster = NSWindow(contentRect: NSRect(x: 0, y: 0,
@@ -155,7 +157,7 @@ final class EinstellungenFenster: NSWindowController, NSWindowDelegate {
         ordnerZeile("Ideen", feld: ideenPfad,
                     wahl: #selector(ideenWaehlen), standard: #selector(ideenStandard))
 
-        let notiz = NSTextField(labelWithString: "Standard ist „Bilder › Snap it“. Sichern legt die Datei ohne Rückfrage dort ab — ⇧⌘S fragt nach dem Ort.")
+        let notiz = NSTextField(labelWithString: "Cmd-S sichert ohne Rückfrage dorthin, Umschalt-Cmd-S fragt nach dem Ort.")
         notiz.font = NSFont.systemFont(ofSize: 11)
         notiz.textColor = .tertiaryLabelColor
         notiz.frame = NSRect(x: 24, y: y + 10, width: 532, height: 16)
@@ -168,12 +170,30 @@ final class EinstellungenFenster: NSWindowController, NSWindowDelegate {
         let feld = KuerzelFeld(code: Einstellungen.geteilt.hotkeyCode,
                                modifier: Einstellungen.geteilt.hotkeyModifier)
         feld.frame = NSRect(x: 200, y: y - 5, width: 150, height: 28)
-        feld.beiAenderung = { code, mod in
+        feld.beiAenderung = { [weak self] code, mod in
             Einstellungen.geteilt.hotkeyCode = code
             Einstellungen.geteilt.hotkeyModifier = mod
+            self?.kuerzelHinweisSetzen()
         }
         inhalt.addSubview(feld)
-        y -= 42
+        y -= 26
+
+        // Hinweis, wenn macOS die Kombination selbst belegt
+        kuerzelHinweis.font = NSFont.systemFont(ofSize: 11)
+        kuerzelHinweis.textColor = .systemOrange
+        kuerzelHinweis.lineBreakMode = .byWordWrapping
+        kuerzelHinweis.maximumNumberOfLines = 2
+        kuerzelHinweis.frame = NSRect(x: 24, y: y - 6, width: 340, height: 30)
+        inhalt.addSubview(kuerzelHinweis)
+
+        systemKnopf.target = self
+        systemKnopf.action = #selector(tastaturEinstellungen)
+        systemKnopf.bezelStyle = .rounded
+        systemKnopf.controlSize = .small
+        systemKnopf.frame = NSRect(x: 376, y: y - 2, width: 180, height: 24)
+        inhalt.addSubview(systemKnopf)
+        kuerzelHinweisSetzen()
+        y -= 40
 
         // — Verhalten —
         ueberschrift("NACH DEM SICHERN")
@@ -251,4 +271,26 @@ final class EinstellungenFenster: NSWindowController, NSWindowDelegate {
     @objc private func finderGeschaltet(_ s: NSButton) { Einstellungen.geteilt.imFinderZeigen = s.state == .on }
     @objc private func autoGeschaltet(_ s: NSButton) { Aktualisierung.automatisch = s.state == .on }
     @objc private func jetztPruefen() { Aktualisierung.pruefen(sichtbar: true) }
+
+    @objc private func tastaturEinstellungen() {
+        if let u = URL(string: "x-apple.systempreferences:com.apple.preference.keyboard?Shortcuts") {
+            NSWorkspace.shared.open(u)
+        }
+    }
+
+    /// Zeigt an, wenn das gewählte Kürzel von macOS belegt ist. Snap it ändert
+    /// daran nichts von sich aus — der Schalter dafür gehört in die
+    /// Systemeinstellungen, wo er auch wieder zurückgestellt werden kann.
+    private func kuerzelHinweisSetzen() {
+        let e = Einstellungen.geteilt
+        if let name = Tastatur.systemkurzbefehl(code: e.hotkeyCode, carbonModifier: e.hotkeyModifier) {
+            kuerzelHinweis.stringValue = "macOS belegt \(e.hotkeyText) selbst: \(name). "
+                + "Nimm den Haken unter Bildschirmfotos weg, sonst greift Snap it nicht."
+            kuerzelHinweis.isHidden = false
+            systemKnopf.isHidden = false
+        } else {
+            kuerzelHinweis.isHidden = true
+            systemKnopf.isHidden = true
+        }
+    }
 }

@@ -150,6 +150,23 @@ enum Tastatur {
         return ergebnis
     }
 
+    /// Nennt den Systemkurzbefehl, falls die Kombination von macOS belegt ist.
+    ///
+    /// Solche Kürzel lassen sich zwar registrieren — RegisterEventHotKey meldet
+    /// sogar Erfolg —, das System bekommt die Taste aber zuerst. Ohne Hinweis
+    /// sähe es für den Nutzer so aus, als sei die App defekt.
+    static func systemkurzbefehl(code: UInt32, carbonModifier m: UInt32) -> String? {
+        let cmdShift = UInt32(cmdKey | shiftKey)
+        let cmdShiftCtrl = UInt32(cmdKey | shiftKey | controlKey)
+        guard m == cmdShift || m == cmdShiftCtrl else { return nil }
+        switch code {
+        case UInt32(kVK_ANSI_3): return "Bildschirmfoto vom ganzen Bildschirm"
+        case UInt32(kVK_ANSI_4): return "Bildschirmfoto von einem Ausschnitt"
+        case UInt32(kVK_ANSI_5): return "Bildschirmfoto- und Aufnahmeoptionen"
+        default: return nil
+        }
+    }
+
     /// Rechnet die Modifier eines NSEvent in Carbon-Flags um.
     static func carbonModifier(_ flags: NSEvent.ModifierFlags) -> UInt32 {
         var m: UInt32 = 0

@@ -227,10 +227,10 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
     private func alsIdee() {
         guard let bild = fertigesBild() else { return }
         let feld = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        feld.placeholderString = "Wofür ist das eine Idee?"
+        feld.placeholderString = "z. B. Aufbau Landingpage"
         let alarm = NSAlert()
         alarm.messageText = "Als Idee merken"
-        alarm.informativeText = "Landet im Ideen-Ordner und ist über die Menüleiste wieder auffindbar."
+        alarm.informativeText = "Der Name wird zum Dateinamen im Ideen-Ordner. Ohne Angabe nimmt Snap it das Datum."
         alarm.accessoryView = feld
         alarm.addButton(withTitle: "Merken")
         alarm.addButton(withTitle: "Abbrechen")
