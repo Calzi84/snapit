@@ -308,27 +308,18 @@ final class Leiste: NSView {
     /// Kleinste Breite, bei der sich nichts überlappt.
     static let mindestBreite: CGFloat = 1124
 
-    private func trenner(_ x: CGFloat, mitte: CGFloat) {
-        NSColor.white.withAlphaComponent(0.13).setFill()
-        NSRect(x: x, y: mitte - 11, width: 1, height: 22).fill()
-    }
-    private var trennerX: [CGFloat] = []
-
     override func layout() {
         super.layout()
         glas.frame = bounds
         let mitte = bounds.height / 2
         let knopf: CGFloat = 32
         var x: CGFloat = 10
-        trennerX = []
 
         for w in Werkzeug.allCases {
             werkzeugKnoepfe[w]?.frame = CGRect(x: x, y: mitte - knopf/2, width: knopf, height: knopf)
             x += knopf
         }
-        x += 8
-        trennerX.append(x - 4)
-        x += 6
+        x += 14
 
         for k in farbKnoepfe {
             k.frame = CGRect(x: x, y: mitte - 12, width: 24, height: 24)
@@ -353,14 +344,14 @@ final class Leiste: NSView {
             rechts -= knopf
             k.frame = CGRect(x: rechts, y: mitte - knopf/2, width: knopf, height: knopf)
         }
-        trennerX.append(rechts - 8)
         needsDisplay = true
     }
 
+    /// Dunkle Fläche unter dem Glas: sie wird mitgeblurrt und hält die Leiste
+    /// auch über hellen Screenshots dunkel genug für helle Symbole.
     override func draw(_ dirty: NSRect) {
         NSColor(srgbRed: 0.09, green: 0.10, blue: 0.095, alpha: 0.62).setFill()
         NSBezierPath(roundedRect: bounds, xRadius: bounds.height/2, yRadius: bounds.height/2).fill()
         super.draw(dirty)
-        for x in trennerX { trenner(x, mitte: bounds.height/2) }
     }
 }

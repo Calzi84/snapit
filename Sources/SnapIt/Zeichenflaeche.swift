@@ -23,7 +23,11 @@ final class Zeichenflaeche: NSView {
     private var zieheAb: CGPoint = .zero
     private var hatGemerkt = false
     private var textFeld: NSTextField?
-    private var naechsteNummer = 1
+    /// Aus den vorhandenen Marken abgeleitet, damit der Zähler nach einer
+    /// Rücknahme nicht weiterspringt.
+    private var naechsteNummer: Int {
+        (doc.formen.filter { $0.werkzeug == .nummer }.map { $0.nummer }.max() ?? 0) + 1
+    }
 
     init(doc: Dokument) {
         self.doc = doc
@@ -150,7 +154,6 @@ final class Zeichenflaeche: NSView {
             doc.merken()
             let f = Form(werkzeug: .nummer, farbe: farbe, staerke: staerke, p1: p, p2: p)
             f.nummer = naechsteNummer
-            naechsteNummer += 1
             doc.formen.append(f)
             delegat?.zustandGeaendert()
             needsDisplay = true
@@ -257,8 +260,6 @@ final class Zeichenflaeche: NSView {
     }
 
     func auswahlAufheben() { auswahl = nil }
-
-    func nummernZuruecksetzen() { naechsteNummer = 1 }
 
     // MARK: – Textwerkzeug
 

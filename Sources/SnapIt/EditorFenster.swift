@@ -262,8 +262,6 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
     private func zeigeMeldung(_ text: String, dauer: TimeInterval = 1.6, danach: (() -> Void)? = nil) {
         meldung?.removeFromSuperview()
         let v = MeldungsView(text: text)
-        let hg = Theme.glas(radius: 18)
-        v.addSubview(hg, positioned: .below, relativeTo: nil)
         flaeche.addSubview(v)
         v.frame = NSRect(x: (flaeche.bounds.width - v.breite)/2,
                          y: flaeche.bounds.height - Theme.leisteHoehe - 2*Theme.leisteAbstand - 46,
@@ -280,22 +278,34 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
                 danach?()
             }
         }
-        if danach == nil { return }
     }
 }
 
 /// Kurze Rückmeldung am unteren Bildrand.
+///
+/// Glas und Beschriftung sind eigene Unterebenen. Den Text in draw() zu
+/// zeichnen wäre kürzer, er läge dann aber unter der Glasschicht — Unterebenen
+/// werden nach der eigenen Zeichnung gemalt.
 final class MeldungsView: NSView {
-    private let text: String
     let breite: CGFloat
+    private let schrift = NSFont.systemFont(ofSize: 12.5, weight: .medium)
+    private let glas: NSView
+    private let beschriftung: NSTextField
 
     init(text: String) {
-        self.text = text
         let groesse = (text as NSString).size(withAttributes: [
             .font: NSFont.systemFont(ofSize: 12.5, weight: .medium)])
-        self.breite = groesse.width + 34
+        self.breite = groesse.width + 36
+        self.glas = Theme.glas(radius: 18)
+        self.beschriftung = NSTextField(labelWithString: text)
         super.init(frame: .zero)
         wantsLayer = true
+
+        beschriftung.font = schrift
+        beschriftung.textColor = Theme.schrift
+        beschriftung.alignment = .center
+        addSubview(glas)
+        addSubview(beschriftung)
     }
     required init?(coder: NSCoder) { fatalError() }
 
@@ -303,24 +313,13 @@ final class MeldungsView: NSView {
 
     override func layout() {
         super.layout()
-        subviews.first?.frame = bounds
+        glas.frame = bounds
+        let h = beschriftung.intrinsicContentSize.height
+        beschriftung.frame = NSRect(x: 0, y: (bounds.height - h)/2, width: bounds.width, height: h)
     }
 
     override func draw(_ dirty: NSRect) {
-        let r = bounds
-        NSColor.black.withAlphaComponent(0.55).setFill()
-        NSBezierPath(roundedRect: r, xRadius: r.height/2, yRadius: r.height/2).fill()
-        NSColor.white.withAlphaComponent(0.16).setStroke()
-        let rand = NSBezierPath(roundedRect: r.insetBy(dx: 0.5, dy: 0.5),
-                                xRadius: r.height/2, yRadius: r.height/2)
-        rand.lineWidth = 1
-        rand.stroke()
-        let attr: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 12.5, weight: .medium),
-            .foregroundColor: Theme.schrift,
-        ]
-        let g = (text as NSString).size(withAttributes: attr)
-        (text as NSString).draw(at: CGPoint(x: (bounds.width - g.width)/2,
-                                            y: (bounds.height - g.height)/2), withAttributes: attr)
+        NSColor.black.withAlphaComponent(0.45).setFill()
+        NSBezierPath(roundedRect: bounds, xRadius: bounds.height/2, yRadius: bounds.height/2).fill()
     }
 }

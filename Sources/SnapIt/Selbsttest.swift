@@ -80,6 +80,14 @@ enum Selbsttest {
                                        CGPoint(x: mitte.x + 60, y: mitte.y), in: flaeche))
         pruefe("Nummern zählen hoch", ersteNummer?.nummer == 1 && doc.formen.last?.nummer == 2)
 
+        // Nach einer Rücknahme muss die nächste Marke die freigewordene Zahl tragen
+        doc.zurueckNehmen()
+        flaeche.mouseDown(with: ereignis(.leftMouseDown,
+                                         CGPoint(x: mitte.x + 90, y: mitte.y), in: flaeche))
+        flaeche.mouseUp(with: ereignis(.leftMouseUp,
+                                       CGPoint(x: mitte.x + 90, y: mitte.y), in: flaeche))
+        pruefe("Zähler springt nach Rücknahme nicht", doc.formen.last?.nummer == 2)
+
         print("\nAuswählen und Verschieben")
         flaeche.werkzeug = .auswahl
         let ziel1 = doc.formen.first!

@@ -120,7 +120,9 @@ enum Aktualisierung {
                 austauschen(zip: ort)
             }
         }
-        aufgabe.resume()
+        // Erst starten, wenn die modale Schleife steht — sonst kann stopModal()
+        // eines schnellen Downloads ins Leere laufen und der Dialog hängt.
+        DispatchQueue.main.async { aufgabe.resume() }
         NSApp.activate(ignoringOtherApps: true)
         if fortschritt.runModal() == .alertFirstButtonReturn { aufgabe.cancel() }
     }

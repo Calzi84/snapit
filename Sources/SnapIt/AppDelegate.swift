@@ -76,6 +76,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.bereich()
         }
         menueAuffrischen()
+        if hotkey == nil {
+            hinweis("Kürzel \(e.hotkeyText) ist belegt",
+                    "Ein anderes Programm oder macOS selbst nutzt diese Tastenkombination schon. "
+                    + "Wähle in den Einstellungen eine andere — aufnehmen lässt sich weiterhin über dieses Menü.")
+        }
     }
 
     // MARK: – Aufnahme

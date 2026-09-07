@@ -66,7 +66,7 @@ final class KuerzelFeld: NSView {
     }
 }
 
-final class EinstellungenFenster: NSWindowController {
+final class EinstellungenFenster: NSWindowController, NSTextFieldDelegate {
 
     private let bilderPfad = NSTextField(labelWithString: "")
     private let ideenPfad = NSTextField(labelWithString: "")
@@ -186,6 +186,7 @@ final class EinstellungenFenster: NSWindowController {
         updateFeld.frame = NSRect(x: 24, y: y, width: 400, height: 22)
         updateFeld.target = self
         updateFeld.action = #selector(updateURLGeaendert)
+        updateFeld.delegate = self
         inhalt.addSubview(updateFeld)
 
         let jetzt = NSButton(title: "Jetzt prüfen", target: self, action: #selector(jetztPruefen))
@@ -250,6 +251,10 @@ final class EinstellungenFenster: NSWindowController {
     @objc private func kopierenGeschaltet(_ s: NSButton) { Einstellungen.geteilt.nachSichernKopieren = s.state == .on }
     @objc private func finderGeschaltet(_ s: NSButton) { Einstellungen.geteilt.imFinderZeigen = s.state == .on }
     @objc private func autoGeschaltet(_ s: NSButton) { Aktualisierung.automatisch = s.state == .on }
+    /// Auch ohne Eingabetaste sichern — sonst geht die Adresse beim Schließen verloren.
+    func controlTextDidChange(_ n: Notification) { updateURLGeaendert() }
+    func controlTextDidEndEditing(_ n: Notification) { updateURLGeaendert() }
+
     @objc private func updateURLGeaendert() {
         UserDefaults.standard.set(updateFeld.stringValue.trimmingCharacters(in: .whitespaces), forKey: "updateURL")
     }

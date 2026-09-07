@@ -37,13 +37,14 @@ final class IdeeKachel: NSView {
             let s = min(bildFeld.width / b.size.width, bildFeld.height / b.size.height)
             let z = CGRect(x: bildFeld.midX - b.size.width*s/2, y: bildFeld.midY - b.size.height*s/2,
                            width: b.size.width*s, height: b.size.height*s)
+            // Der Clip muss gesichert und zurückgenommen werden: setClip bildet
+            // die Schnittmenge, lässt sich also nicht wieder aufweiten.
+            NSGraphicsContext.saveGraphicsState()
             NSGraphicsContext.current?.imageInterpolation = .high
             NSBezierPath(roundedRect: z, xRadius: 5, yRadius: 5).setClip()
             b.draw(in: z)
-            NSGraphicsContext.current?.saveGraphicsState()
-            NSGraphicsContext.current?.restoreGraphicsState()
+            NSGraphicsContext.restoreGraphicsState()
         }
-        NSBezierPath(rect: bounds).setClip()
 
         let notiz = idee.notiz.isEmpty ? "Ohne Notiz" : idee.notiz
         let attr: [NSAttributedString.Key: Any] = [
@@ -103,7 +104,7 @@ final class IdeeKachel: NSView {
 }
 
 /// Übersicht aller gemerkten Ideen.
-final class IdeenFenster: NSWindowController {
+final class IdeenFenster: NSWindowController, NSWindowDelegate {
 
     private let scroll = NSScrollView()
     private let raster = NSView()
@@ -138,6 +139,7 @@ final class IdeenFenster: NSWindowController {
         inhalt.addSubview(leer)
         fenster.contentView = inhalt
 
+        fenster.delegate = self
         NotificationCenter.default.addObserver(self, selector: #selector(auffrischen),
                                               name: Ideenablage.geaendert, object: nil)
         auffrischen()
@@ -185,4 +187,6 @@ final class IdeenFenster: NSWindowController {
     }
 
     func windowDidResize(_ n: Notification) { auffrischen() }
+
+    deinit { NotificationCenter.default.removeObserver(self) }
 }
