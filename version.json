@@ -1,5 +1,5 @@
 {
-  "version": "1.2.1",
-  "notizen": "Normaler Mauszeiger über der Werkzeugleiste. Sichern lässt das Fenster offen. Kein doppelter Hinweis mehr bei fehlender Bildschirmfreigabe.",
-  "download": "https://github.com/Calzi84/snapit/releases/download/v1.2.1/SnapIt-1.2.1.zip"
+  "version": "1.3.0",
+  "notizen": "Ideen tragen ihren Namen jetzt im Dateinamen — keine zusätzliche Datei mehr im Ordner. Das Kürzelfeld warnt, wenn macOS die gewählte Tastenkombination selbst belegt.",
+  "download": "https://github.com/Calzi84/snapit/releases/download/v1.3.0/SnapIt-1.3.0.zip"
 }
