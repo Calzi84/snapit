@@ -33,6 +33,10 @@ ARCHIV="build/SnapIt-$VERSION.zip"
 rm -f "$ARCHIV"
 ditto -c -k --sequesterRsrc --keepParent "build/Snap it.app" "$ARCHIV"
 
+# Disk-Image fuer alle, die lieber klicken als ein Skript auszufuehren
+./dmg.sh
+ABBILD="build/SnapIt-$VERSION.dmg"
+
 cat > version.json << JSON
 {
   "version": "$VERSION",
@@ -47,7 +51,7 @@ git tag -f "v$VERSION"
 git push origin "$ZWEIG" --tags
 
 echo "▸ Lege Release an …"
-gh release create "v$VERSION" "$ARCHIV" --title "Snap it $VERSION" --notes "$NOTIZ" \
-    || gh release upload "v$VERSION" "$ARCHIV" --clobber
+gh release create "v$VERSION" "$ARCHIV" "$ABBILD" --title "Snap it $VERSION" --notes "$NOTIZ" \
+    || gh release upload "v$VERSION" "$ARCHIV" "$ABBILD" --clobber
 
 echo "▸ Fertig. Die Mitarbeiter sehen das Update beim nächsten Start."
