@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
-  "notizen": "Marker rastet jetzt auf Textzeilen ein und läuft gerade. Zeichnungen laufen nicht mehr über den Bildrand hinaus. Feste Signatur: Die Freigabe zur Bildschirmaufnahme bleibt über Updates hinweg bestehen.",
-  "download": "https://github.com/Calzi84/snapit/releases/download/v1.1.0/SnapIt-1.1.0.zip"
+  "version": "1.2.0",
+  "notizen": "Snap it erscheint im Dock, solange ein Fenster offen ist — so geht der Editor nicht mehr hinter anderen Fenstern verloren.",
+  "download": "https://github.com/Calzi84/snapit/releases/download/v1.2.0/SnapIt-1.2.0.zip"
 }
