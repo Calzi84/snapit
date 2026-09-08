@@ -163,6 +163,16 @@ final class Zeichenflaeche: NSView {
     override func mouseDown(with e: NSEvent) {
         textCommit()
         let roh = convert(e.locationInWindow, from: nil)
+
+        // Neben dem Bild wird das Fenster verschoben, nicht gezeichnet. Die
+        // Fläche liegt über dem gesamten Fenster, auch über dem freien Rand
+        // oben — ohne das ließe sich das Fenster nirgends mehr anfassen.
+        guard bildRect.contains(roh) else {
+            auswahl = nil
+            window?.performDrag(with: e)
+            return
+        }
+
         let p = nachBild(roh)
         hatGemerkt = false
 
@@ -302,6 +312,9 @@ final class Zeichenflaeche: NSView {
     }
 
     func auswahlAufheben() { auswahl = nil }
+
+    /// Ob an dieser Stelle gezeichnet wird. Daneben verschiebt ein Zug das Fenster.
+    func istZeichenbereich(_ punkt: CGPoint) -> Bool { bildRect.contains(punkt) }
 
     // MARK: – Textwerkzeug
 

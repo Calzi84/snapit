@@ -136,15 +136,25 @@ enum Selbsttest {
 
         print("\nZeichnen bleibt im Bild")
         flaeche.werkzeug = .pfeil
-        let weitDraussen = CGPoint(x: flaeche.bildRect.minX - 220, y: flaeche.bildRect.minY - 120)
-        ziehen(flaeche, von: weitDraussen, nach: mitte)
+        // Zug über den Bildrand hinaus: die Form muss an der Kante enden
+        ziehen(flaeche, von: mitte,
+               nach: CGPoint(x: flaeche.bildRect.maxX + 260, y: flaeche.bildRect.maxY + 180))
         if let f = doc.formen.last {
-            let imBild = f.p1.x >= 0 && f.p1.y >= 0
-                && f.p1.x <= doc.groesse.width && f.p1.y <= doc.groesse.height
-            pruefe("Zug von außerhalb wird an die Bildkante geholt", imBild)
+            let imBild = f.p2.x >= 0 && f.p2.y >= 0
+                && f.p2.x <= doc.groesse.width && f.p2.y <= doc.groesse.height
+            pruefe("Zug über den Bildrand hinaus endet an der Kante", imBild)
         } else {
-            pruefe("Zug von außerhalb legt eine Form an", false)
+            pruefe("Zug über den Bildrand legt eine Form an", false)
         }
+
+        // Neben dem Bild gehört der Zug dem Fenster, nicht dem Werkzeug.
+        // Geprüft wird die Zuständigkeit statt eines echten Zuges — ein
+        // mouseDown dort startet eine Zieh-Schleife, die im Test nie endet.
+        let neben = CGPoint(x: flaeche.bildRect.minX - 40, y: flaeche.bildRect.minY - 20)
+        pruefe("Rand neben dem Bild verschiebt das Fenster", !flaeche.istZeichenbereich(neben))
+        pruefe("oberer Fensterrand verschiebt das Fenster",
+               !flaeche.istZeichenbereich(CGPoint(x: flaeche.bounds.midX, y: 8)))
+        pruefe("auf dem Bild wird gezeichnet", flaeche.istZeichenbereich(mitte))
 
         print("\nMarker")
         flaeche.werkzeug = .marker
