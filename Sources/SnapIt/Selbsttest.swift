@@ -77,6 +77,7 @@ enum Selbsttest {
         for w in [Werkzeug.pfeil, .linie, .rechteck, .ellipse, .stift, .marker, .pixel] {
             let vorher = doc.formen.count
             flaeche.werkzeug = w
+            flaeche.auswahlAufheben()
             ziehen(flaeche, von: links, nach: rechts)
             pruefe("\(w.rawValue) legt eine Form an", doc.formen.count == vorher + 1)
         }
@@ -134,6 +135,85 @@ enum Selbsttest {
         doc.zurueckNehmen()
         pruefe("Zuschnitt ist rücknehmbar", doc.groesse == vorGroesse)
 
+        print("\nGröße ändern")
+        func inAnsicht(_ q: CGPoint) -> CGPoint {
+            CGPoint(x: q.x * flaeche.skala + flaeche.bildRect.minX,
+                    y: q.y * flaeche.skala + flaeche.bildRect.minY)
+        }
+        flaeche.auswahlAufheben()
+        flaeche.werkzeug = .rechteck
+        ziehen(flaeche, von: CGPoint(x: mitte.x - 60, y: mitte.y - 40),
+               nach: CGPoint(x: mitte.x + 60, y: mitte.y + 40))
+        if let kasten = doc.formen.last, kasten.werkzeug == .rechteck {
+            pruefe("frisch gezeichnete Form ist ausgewählt", flaeche.hatAuswahl)
+            let vorher = kasten.rechteck
+            let anzahl = doc.formen.count
+
+            let griffUR = inAnsicht(CGPoint(x: vorher.maxX, y: vorher.maxY))
+            ziehen(flaeche, von: griffUR, nach: CGPoint(x: griffUR.x + 50, y: griffUR.y + 30))
+            pruefe("Eckanfasser vergrößert das Rechteck",
+                   kasten.rechteck.width > vorher.width + 20 && kasten.rechteck.height > vorher.height + 10)
+            pruefe("gegenüberliegende Ecke bleibt stehen",
+                   abs(kasten.rechteck.minX - vorher.minX) < 0.5 && abs(kasten.rechteck.minY - vorher.minY) < 0.5)
+            pruefe("Ziehen am Anfasser legt keine neue Form an", doc.formen.count == anzahl)
+
+            let r2 = kasten.rechteck
+            let griffRechts = inAnsicht(CGPoint(x: r2.maxX, y: r2.midY))
+            ziehen(flaeche, von: griffRechts, nach: CGPoint(x: griffRechts.x - 30, y: griffRechts.y + 40))
+            pruefe("Kantenanfasser ändert nur die Breite",
+                   kasten.rechteck.width < r2.width && abs(kasten.rechteck.height - r2.height) < 0.5)
+
+            doc.zurueckNehmen()
+            flaeche.auswahlAufheben()
+            let zurueck = doc.formen.last?.rechteck ?? .zero
+            pruefe("Größenänderung ist rücknehmbar", abs(zurueck.width - r2.width) < 0.5)
+        } else {
+            pruefe("Rechteck für die Größenprüfung angelegt", false)
+        }
+
+        flaeche.werkzeug = .linie
+        let l1 = CGPoint(x: mitte.x - 80, y: mitte.y + 70)
+        let l2 = CGPoint(x: mitte.x + 80, y: mitte.y + 70)
+        ziehen(flaeche, von: l1, nach: l2)
+        if let linie = doc.formen.last, linie.werkzeug == .linie {
+            let anfang = linie.p1, ende = linie.p2
+            ziehen(flaeche, von: inAnsicht(ende), nach: CGPoint(x: l2.x, y: l2.y + 50))
+            pruefe("Endanfasser versetzt nur das Linienende", linie.p2 != ende && linie.p1 == anfang)
+        } else {
+            pruefe("Linie für die Größenprüfung angelegt", false)
+        }
+
+        flaeche.auswahlAufheben()
+        flaeche.werkzeug = .marker
+        wackeln(flaeche, von: CGPoint(x: mitte.x - 100, y: mitte.y - 90),
+                nach: CGPoint(x: mitte.x + 60, y: mitte.y - 90))
+        if let m = doc.formen.last, m.werkzeug == .marker,
+           let rechtsEnde = m.punkte.max(by: { $0.x < $1.x }) {
+            let breiteVorher = (m.punkte.map { $0.x }.max() ?? 0) - (m.punkte.map { $0.x }.min() ?? 0)
+            let g = inAnsicht(rechtsEnde)
+            ziehen(flaeche, von: g, nach: CGPoint(x: g.x + 60, y: g.y + 25))
+            let xs = m.punkte.map { $0.x }
+            pruefe("Marker wird am Ende länger und bleibt auf der Zeile",
+                   (xs.max()! - xs.min()!) > breiteVorher + 30
+                   && Set(m.punkte.map { ($0.y * 100).rounded() }).count == 1)
+        } else {
+            pruefe("Marker für die Größenprüfung angelegt", false)
+        }
+        flaeche.auswahlAufheben()
+
+        print("\nZwischenablage")
+        let probe = NSPasteboard(name: NSPasteboard.Name("SnapItSelbsttest"))
+        if let bild = Render.rendern(doc) {
+            Zwischenablage.bild(bild, auf: probe)
+            let eintraege = probe.pasteboardItems ?? []
+            pruefe("Kopieren legt genau einen Eintrag ab", eintraege.count == 1)
+            let typen = eintraege.first?.types ?? []
+            pruefe("der Eintrag trägt PNG und TIFF", typen.contains(.png) && typen.contains(.tiff))
+        } else {
+            pruefe("Bild für die Zwischenablage gerendert", false)
+        }
+        probe.releaseGlobally()
+
         print("\nZeichnen bleibt im Bild")
         flaeche.werkzeug = .pfeil
         // Zug über den Bildrand hinaus: die Form muss an der Kante enden
@@ -176,6 +256,20 @@ enum Selbsttest {
             pruefe("PNG ist nicht leer", daten.count > 5000)
         } else {
             pruefe("PNG konnte geschrieben werden", false)
+        }
+
+        // Ansicht mit ausgewählter Form ablegen, damit sich die Anfasser ansehen lassen
+        flaeche.werkzeug = .ellipse
+        flaeche.auswahlAufheben()
+        ziehen(flaeche, von: CGPoint(x: mitte.x - 90, y: mitte.y - 150),
+               nach: CGPoint(x: mitte.x + 90, y: mitte.y - 40))
+        flaeche.display()
+        if let inhalt = fenster.window?.contentView,
+           let rep = inhalt.bitmapImageRepForCachingDisplay(in: inhalt.bounds) {
+            inhalt.cacheDisplay(in: inhalt.bounds, to: rep)
+            let ansicht = ziel.deletingPathExtension().appendingPathExtension("ansicht.png")
+            try? rep.representation(using: .png, properties: [:])?.write(to: ansicht)
+            print("Ansicht: \(ansicht.path)")
         }
 
         print("\n\(geprueft - fehler.count) von \(geprueft) Prüfungen bestanden")

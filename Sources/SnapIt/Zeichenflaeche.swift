@@ -11,7 +11,13 @@ final class Zeichenflaeche: NSView {
 
     weak var delegat: ZeichenflaecheDelegat?
     var doc: Dokument
-    var werkzeug: Werkzeug = .pfeil { didSet { auswahl = nil; cursorSetzen(); needsDisplay = true } }
+    var werkzeug: Werkzeug = .pfeil {
+        didSet {
+            if werkzeug == .zuschnitt { auswahl = nil }
+            cursorSetzen()
+            needsDisplay = true
+        }
+    }
     var farbe: NSColor = Theme.palette[0]
     var staerkeUI: CGFloat = 4
 
@@ -22,6 +28,20 @@ final class Zeichenflaeche: NSView {
     private var auswahl: Form? { didSet { needsDisplay = true } }
     private var zieheAb: CGPoint = .zero
     private var hatGemerkt = false
+
+    /// Anfasser an einer ausgewählten Form. Die Flags sagen, welche Kanten ein
+    /// Zug daran bewegt; `ende` gilt für Linien, Pfeile und Marker.
+    private struct Griff {
+        let punkt: CGPoint
+        var links = false, rechts = false, oben = false, unten = false
+        var ende: Int? = nil
+        var istEcke: Bool { (links || rechts) && (oben || unten) }
+    }
+    private var griffAktiv: Griff?
+    /// Lage der Form zu Beginn des Zugs — gerechnet wird immer von hier aus,
+    /// sonst summieren sich Rundungsfehler bei jedem Mausschritt.
+    private var griffStartRahmen: CGRect = .zero
+    private var griffStartPunkte: [CGPoint] = []
     private var textFeld: NSTextField?
     /// Aus den vorhandenen Marken abgeleitet, damit der Zähler nach einer
     /// Rücknahme nicht weiterspringt.
@@ -122,12 +142,25 @@ final class Zeichenflaeche: NSView {
         ctx.restoreGraphicsState()
 
         if let a = auswahl {
-            let r = nachView(a.rahmen(schrift: Render.schriftFuer(a.staerke))).insetBy(dx: -3, dy: -3)
-            Theme.gruen.withAlphaComponent(0.95).setStroke()
-            let p = NSBezierPath(rect: r)
-            p.lineWidth = 1.5
-            p.setLineDash([5, 4], count: 2, phase: 0)
-            p.stroke()
+            // Rahmenformen zeigen den Auswahlrahmen genau durch ihre Anfasser,
+            // Linien kommen mit den Endpunkten aus, Text und Nummern behalten
+            // den Rahmen um ihre Fläche.
+            let umriss: CGRect?
+            switch a.werkzeug {
+            case .rechteck, .ellipse, .pixel: umriss = nachView(a.rechteck)
+            case .stift:                      umriss = punkteRahmen(a).map { nachView($0) }
+            case .linie, .pfeil, .marker:     umriss = nil
+            default:
+                umriss = nachView(a.rahmen(schrift: Render.schriftFuer(a.staerke))).insetBy(dx: -3, dy: -3)
+            }
+            if let r = umriss {
+                Theme.gruen.withAlphaComponent(0.95).setStroke()
+                let p = NSBezierPath(rect: r)
+                p.lineWidth = 1.5
+                p.setLineDash([5, 4], count: 2, phase: 0)
+                p.stroke()
+            }
+            griffeZeichnen(a)
         }
 
         if let z = aktuelle, z.werkzeug == .zuschnitt {
@@ -164,6 +197,16 @@ final class Zeichenflaeche: NSView {
         textCommit()
         let roh = convert(e.locationInWindow, from: nil)
 
+        // Anfasser der ausgewählten Form gehen vor — auch vor dem Fensterrand,
+        // denn an der Bildkante ragen sie ein Stück darüber hinaus.
+        if let a = auswahl, let g = griff(an: roh, fuer: a) {
+            griffAktiv = g
+            griffStartRahmen = a.werkzeug == .stift ? (punkteRahmen(a) ?? a.rechteck) : a.rechteck
+            griffStartPunkte = a.punkte
+            hatGemerkt = false
+            return
+        }
+
         // Neben dem Bild wird das Fenster verschoben, nicht gezeichnet. Die
         // Fläche liegt über dem gesamten Fenster, auch über dem freien Rand
         // oben — ohne das ließe sich das Fenster nirgends mehr anfassen.
@@ -175,6 +218,8 @@ final class Zeichenflaeche: NSView {
 
         let p = nachBild(roh)
         hatGemerkt = false
+        // Wer mit einem Zeichenwerkzeug neben die Anfasser klickt, beginnt etwas Neues
+        if werkzeug != .auswahl { auswahl = nil }
 
         switch werkzeug {
         case .auswahl:
@@ -220,6 +265,13 @@ final class Zeichenflaeche: NSView {
     override func mouseDragged(with e: NSEvent) {
         let p = nachBild(convert(e.locationInWindow, from: nil))
 
+        if let g = griffAktiv, let a = auswahl {
+            if !hatGemerkt { doc.merken(); hatGemerkt = true }
+            groesseAendern(a, griff: g, auf: p, gleichmaessig: e.modifierFlags.contains(.shift))
+            needsDisplay = true
+            return
+        }
+
         if werkzeug == .auswahl {
             guard let a = auswahl else { return }
             if !hatGemerkt { doc.merken(); hatGemerkt = true }
@@ -239,10 +291,7 @@ final class Zeichenflaeche: NSView {
             // Shift hält Linien und Pfeile auf 45°, Rechtecke und Ellipsen quadratisch
             if e.modifierFlags.contains(.shift) {
                 if f.werkzeug == .linie || f.werkzeug == .pfeil {
-                    let dx = p.x - f.p1.x, dy = p.y - f.p1.y
-                    let w = (atan2(dy, dx) / (.pi/4)).rounded() * (.pi/4)
-                    let l = sqrt(dx*dx + dy*dy)
-                    ziel = CGPoint(x: f.p1.x + cos(w)*l, y: f.p1.y + sin(w)*l)
+                    ziel = rasten45(von: f.p1, nach: p)
                 } else if f.werkzeug.istRahmen {
                     let s = max(abs(p.x - f.p1.x), abs(p.y - f.p1.y))
                     ziel = CGPoint(x: f.p1.x + (p.x < f.p1.x ? -s : s),
@@ -256,6 +305,11 @@ final class Zeichenflaeche: NSView {
 
     override func mouseUp(with e: NSEvent) {
         defer { aktuelle = nil; markerHoehe = nil; needsDisplay = true }
+        if griffAktiv != nil {
+            griffAktiv = nil
+            if hatGemerkt { delegat?.zustandGeaendert() }
+            return
+        }
         if werkzeug == .auswahl {
             if hatGemerkt { delegat?.zustandGeaendert() }
             return
@@ -279,6 +333,8 @@ final class Zeichenflaeche: NSView {
 
         doc.merken()
         doc.formen.append(f)
+        // Ausgewählt lassen, damit sich die Form sofort an den Anfassern anpassen lässt
+        if !griffe(f).isEmpty { auswahl = f }
         delegat?.zustandGeaendert()
     }
 
@@ -312,6 +368,161 @@ final class Zeichenflaeche: NSView {
     }
 
     func auswahlAufheben() { auswahl = nil }
+
+    var hatAuswahl: Bool { auswahl != nil }
+
+    // MARK: – Anfasser
+
+    private func griffe(_ f: Form) -> [Griff] {
+        switch f.werkzeug {
+        case .rechteck, .ellipse, .pixel:
+            return griffeUm(f.rechteck, mitKanten: true)
+        case .stift:
+            guard let r = punkteRahmen(f) else { return [] }
+            return griffeUm(r, mitKanten: false)
+        case .linie, .pfeil:
+            return [Griff(punkt: f.p1, ende: 0), Griff(punkt: f.p2, ende: 1)]
+        case .marker:
+            guard let l = f.punkte.min(by: { $0.x < $1.x }),
+                  let r = f.punkte.max(by: { $0.x < $1.x }) else { return [] }
+            return [Griff(punkt: l, ende: 0), Griff(punkt: r, ende: 1)]
+        default:
+            return []   // Text und Nummern: Größe über den Stärkeregler
+        }
+    }
+
+    private func griffeUm(_ r: CGRect, mitKanten: Bool) -> [Griff] {
+        var g = [
+            Griff(punkt: CGPoint(x: r.minX, y: r.minY), links: true, oben: true),
+            Griff(punkt: CGPoint(x: r.maxX, y: r.minY), rechts: true, oben: true),
+            Griff(punkt: CGPoint(x: r.maxX, y: r.maxY), rechts: true, unten: true),
+            Griff(punkt: CGPoint(x: r.minX, y: r.maxY), links: true, unten: true),
+        ]
+        if mitKanten {
+            g += [
+                Griff(punkt: CGPoint(x: r.midX, y: r.minY), oben: true),
+                Griff(punkt: CGPoint(x: r.maxX, y: r.midY), rechts: true),
+                Griff(punkt: CGPoint(x: r.midX, y: r.maxY), unten: true),
+                Griff(punkt: CGPoint(x: r.minX, y: r.midY), links: true),
+            ]
+        }
+        return g
+    }
+
+    /// Anfasser unter einem Punkt der Ansicht. Die Reichweite gilt in Punkten
+    /// der Ansicht, damit sie bei jeder Vergrößerung gleich gut zu treffen ist.
+    private func griff(an ansicht: CGPoint, fuer f: Form) -> Griff? {
+        let reichweite: CGFloat = 9
+        var bester: (Griff, CGFloat)?
+        for g in griffe(f) {
+            let m = nachView(g.punkt)
+            let d = hypot(m.x - ansicht.x, m.y - ansicht.y)
+            if d <= reichweite, d < (bester?.1 ?? .infinity) { bester = (g, d) }
+        }
+        return bester?.0
+    }
+
+    private func griffeZeichnen(_ f: Form) {
+        for g in griffe(f) {
+            let m = nachView(g.punkt)
+            let r = CGRect(x: m.x - 5, y: m.y - 5, width: 10, height: 10)
+            NSGraphicsContext.saveGraphicsState()
+            let schatten = NSShadow()
+            schatten.shadowColor = NSColor.black.withAlphaComponent(0.45)
+            schatten.shadowOffset = NSSize(width: 0, height: -1)
+            schatten.shadowBlurRadius = 2
+            schatten.set()
+            NSColor.white.setFill()
+            NSBezierPath(ovalIn: r).fill()
+            NSGraphicsContext.restoreGraphicsState()
+            Theme.gruen.setStroke()
+            let rand = NSBezierPath(ovalIn: r.insetBy(dx: 0.75, dy: 0.75))
+            rand.lineWidth = 1.5
+            rand.stroke()
+        }
+    }
+
+    private func groesseAendern(_ f: Form, griff g: Griff, auf p: CGPoint, gleichmaessig: Bool) {
+        switch f.werkzeug {
+        case .linie, .pfeil:
+            if g.ende == 0 {
+                f.p1 = gleichmaessig ? rasten45(von: f.p2, nach: p) : p
+            } else {
+                f.p2 = gleichmaessig ? rasten45(von: f.p1, nach: p) : p
+            }
+
+        case .marker:
+            // Der Marker bleibt auf seiner Zeile: nur die Enden wandern waagerecht
+            guard let y = griffStartPunkte.first?.y else { return }
+            let xs = griffStartPunkte.map { $0.x }
+            var l = xs.min() ?? p.x, r = xs.max() ?? p.x
+            if g.ende == 0 { l = p.x } else { r = p.x }
+            f.punkte = [CGPoint(x: min(l, r), y: y), CGPoint(x: max(l, r), y: y)]
+            f.p1 = f.punkte[0]
+            f.p2 = f.punkte[1]
+
+        case .stift:
+            let r0 = griffStartRahmen
+            let neu = neuerRahmen(r0, griff: g, auf: p, gleichmaessig: gleichmaessig)
+            let sx = r0.width > 0 ? neu.width / r0.width : 1
+            let sy = r0.height > 0 ? neu.height / r0.height : 1
+            f.punkte = griffStartPunkte.map {
+                CGPoint(x: neu.minX + ($0.x - r0.minX) * sx, y: neu.minY + ($0.y - r0.minY) * sy)
+            }
+
+        default:
+            let neu = neuerRahmen(griffStartRahmen, griff: g, auf: p, gleichmaessig: gleichmaessig)
+            f.p1 = CGPoint(x: neu.minX, y: neu.minY)
+            f.p2 = CGPoint(x: neu.maxX, y: neu.maxY)
+        }
+    }
+
+    /// Neuer Rahmen beim Ziehen an einem Anfasser. Die gegenüberliegende Seite
+    /// bleibt stehen; mit Umschalt behalten Ecken das Seitenverhältnis, damit
+    /// ein Quadrat ein Quadrat bleibt.
+    private func neuerRahmen(_ r0: CGRect, griff g: Griff, auf p: CGPoint,
+                             gleichmaessig: Bool) -> CGRect {
+        if g.istEcke {
+            let ax = g.links ? r0.maxX : r0.minX
+            let ay = g.oben ? r0.maxY : r0.minY
+            var w = p.x - ax, h = p.y - ay
+            if gleichmaessig, r0.width > 0, r0.height > 0 {
+                let verhaeltnis = r0.width / r0.height
+                if abs(w) / verhaeltnis > abs(h) {
+                    h = (h < 0 ? -1 : 1) * abs(w) / verhaeltnis
+                } else {
+                    w = (w < 0 ? -1 : 1) * abs(h) * verhaeltnis
+                }
+            }
+            return CGRect(x: min(ax, ax + w), y: min(ay, ay + h), width: abs(w), height: abs(h))
+        }
+        var minX = r0.minX, maxX = r0.maxX, minY = r0.minY, maxY = r0.maxY
+        if g.links  { minX = p.x }
+        if g.rechts { maxX = p.x }
+        if g.oben   { minY = p.y }
+        if g.unten  { maxY = p.y }
+        return CGRect(x: min(minX, maxX), y: min(minY, maxY),
+                      width: abs(maxX - minX), height: abs(maxY - minY))
+    }
+
+    /// Hält eine Linie auf ein Vielfaches von 45°.
+    private func rasten45(von a: CGPoint, nach p: CGPoint) -> CGPoint {
+        let dx = p.x - a.x, dy = p.y - a.y
+        let w = (atan2(dy, dx) / (.pi/4)).rounded() * (.pi/4)
+        let l = sqrt(dx*dx + dy*dy)
+        return CGPoint(x: a.x + cos(w)*l, y: a.y + sin(w)*l)
+    }
+
+    /// Umriss der Freihandpunkte ohne Strichbreite — dort sitzen die Anfasser.
+    private func punkteRahmen(_ f: Form) -> CGRect? {
+        guard let erster = f.punkte.first else { return nil }
+        var minX = erster.x, maxX = erster.x, minY = erster.y, maxY = erster.y
+        for q in f.punkte {
+            minX = min(minX, q.x); maxX = max(maxX, q.x)
+            minY = min(minY, q.y); maxY = max(maxY, q.y)
+        }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
 
     /// Ob an dieser Stelle gezeichnet wird. Daneben verschiebt ein Zug das Fenster.
     func istZeichenbereich(_ punkt: CGPoint) -> Bool { bildRect.contains(punkt) }

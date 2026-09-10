@@ -150,7 +150,13 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
                 }
             }
 
-            if e.keyCode == 53 { self.close(); return nil }   // Esc
+            // Esc hebt zuerst eine Auswahl auf und verwirft erst beim zweiten Druck.
+            // Seit frisch gezeichnete Formen ausgewählt bleiben, wäre die Arbeit
+            // sonst mit einem Tastendruck weg.
+            if e.keyCode == 53 {
+                if self.flaeche.hatAuswahl { self.flaeche.auswahlAufheben() } else { self.close() }
+                return nil
+            }
 
             let kuerzel: [String: Werkzeug] = [
                 "v": .auswahl, "a": .pfeil, "l": .linie, "r": .rechteck, "e": .ellipse,
@@ -177,11 +183,7 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
     }
 
     private func kopieren() {
-        guard let bild = fertigesBild(), let daten = Render.png(bild) else { return }
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setData(daten, forType: .png)
-        pb.writeObjects([bild])
+        guard let bild = fertigesBild(), Zwischenablage.bild(bild) else { return }
         zeigeMeldung("In die Zwischenablage kopiert")
     }
 
@@ -197,11 +199,7 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
         }
         do {
             try daten.write(to: ziel)
-            if Einstellungen.geteilt.nachSichernKopieren {
-                let pb = NSPasteboard.general
-                pb.clearContents()
-                pb.setData(daten, forType: .png)
-            }
+            if Einstellungen.geteilt.nachSichernKopieren { Zwischenablage.bild(bild) }
             if Einstellungen.geteilt.imFinderZeigen {
                 NSWorkspace.shared.activateFileViewerSelecting([ziel])
             }
