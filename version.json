@@ -1,5 +1,5 @@
 {
-  "version": "1.3.2",
-  "notizen": "Das Fenster lässt sich neben dem Bild wieder verschieben — vorher begann dort ein Strich statt der Bewegung.",
-  "download": "https://github.com/Calzi84/snapit/releases/download/v1.3.2/SnapIt-1.3.2.zip"
+  "version": "1.4.0",
+  "notizen": "Formen lassen sich nachträglich an Anfassern in der Größe ändern. Kopieren fügt in WhatsApp nur noch ein Bild ein statt zwei.",
+  "download": "https://github.com/Calzi84/snapit/releases/download/v1.4.0/SnapIt-1.4.0.zip"
 }
