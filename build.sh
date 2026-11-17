@@ -46,6 +46,26 @@ cat > "$APP/Contents/Info.plist" << PLIST
     <key>NSHighResolutionCapable</key>   <true/>
     <key>SnapItUpdateURL</key>           <string>$UPDATE_URL</string>
     <key>NSHumanReadableCopyright</key>  <string>Navion GmbH</string>
+    <!-- "Oeffnen mit" und Ziehen aufs Programmsymbol. Rang Alternate: Snap it
+         taucht in der Liste auf, Vorschau bleibt Standard fuer Bilder. -->
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>  <string>Bild</string>
+            <key>CFBundleTypeRole</key>  <string>Editor</string>
+            <key>LSHandlerRank</key>     <string>Alternate</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>public.png</string>
+                <string>public.jpeg</string>
+                <string>public.heic</string>
+                <string>public.tiff</string>
+                <string>com.compuserve.gif</string>
+                <string>com.microsoft.bmp</string>
+                <string>org.webmproject.webp</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>
 PLIST

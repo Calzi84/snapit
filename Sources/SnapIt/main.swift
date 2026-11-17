@@ -62,6 +62,34 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--vorschau-ein
     app.run()
 }
 
+// Lesbarkeitsprobe: Bildschirmtext wird verpixelt bzw. weichgezeichnet und
+// danach von der Texterkennung gelesen. Was sie noch liest, ist nicht sicher.
+if CommandLine.arguments.count >= 2, CommandLine.arguments[1] == "--lesbarkeit" {
+    if CommandLine.arguments.count >= 3 {
+        Lesbarkeit.tafel(nach: URL(fileURLWithPath: CommandLine.arguments[2]))
+    }
+    print(Lesbarkeit.bericht())
+    exit(0)
+}
+
+// Vergleichsbild der Effekte: fein verpixelt, grob verpixelt, weichgezeichnet
+if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--effektprobe" {
+    guard let doc = Aufnahme.laden(URL(fileURLWithPath: CommandLine.arguments[2]), fremd: true) else { exit(1) }
+    let b = doc.groesse.width, h = doc.groesse.height
+    let streifen = b / 3
+    let felder: [(Werkzeug, CGFloat)] = [(.pixel, 2), (.pixel, 12), (.weichzeichnen, 8)]
+    for (i, (art, stufe)) in felder.enumerated() {
+        let f = Form(werkzeug: art, farbe: .clear, staerke: stufe * doc.faktor,
+                     p1: CGPoint(x: CGFloat(i) * streifen + 20, y: h * 0.12),
+                     p2: CGPoint(x: CGFloat(i + 1) * streifen - 20, y: h * 0.62))
+        doc.formen.append(f)
+    }
+    guard let fertig = Render.rendern(doc), let png = Render.png(fertig) else { exit(1) }
+    try? png.write(to: URL(fileURLWithPath: CommandLine.arguments[3]))
+    print("Effektprobe: \(CommandLine.arguments[3])")
+    exit(0)
+}
+
 if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--selbsttest" {
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)

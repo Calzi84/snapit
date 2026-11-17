@@ -10,6 +10,9 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
     private var meldung: MeldungsView?
     /// Datei, aus der das Bild stammt (Idee erneut geöffnet) — dann wird dort gesichert.
     var herkunft: URL?
+    /// Name des geöffneten Bildes. Gesichert wird dann als „<Name> bearbeitet"
+    /// im Bilder-Ordner — das Original bleibt unangetastet.
+    var vorlage: String?
 
     private static var offene: [EditorFenster] = []
 
@@ -65,11 +68,11 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
     private func verdrahten() {
         leiste.beiWerkzeug = { [weak self] w in self?.flaeche.werkzeug = w }
         leiste.beiFarbe = { [weak self] i in
-            self?.flaeche.farbe = Theme.palette[i]
+            self?.flaeche.farbeSetzen(Theme.palette[i])
             Einstellungen.geteilt.standardFarbe = i
         }
-        leiste.beiStaerke = { [weak self] s in
-            self?.flaeche.staerkeUI = s
+        leiste.beiStaerke = { [weak self] s, beginn in
+            self?.flaeche.staerkeSetzen(s, beginn: beginn)
             Einstellungen.geteilt.standardStaerke = Double(s)
         }
         leiste.beiAktion = { [weak self] a in
@@ -122,6 +125,15 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
         leiste.verlaufSetzen(zurueck: doc.kannZurueck, vor: doc.kannVor)
     }
 
+    func auswahlGeaendert(staerke: CGFloat?) {
+        if let s = staerke {
+            leiste.staerkeAnzeigen(s)
+        } else {
+            // Ohne Auswahl zurück auf den Wert für die nächste Form
+            leiste.staerkeAnzeigen(flaeche.staerkeUI)
+        }
+    }
+
     func werkzeugZuruecksetzen() {
         flaeche.werkzeug = .auswahl
         leiste.werkzeugSetzen(.auswahl)
@@ -160,7 +172,8 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
 
             let kuerzel: [String: Werkzeug] = [
                 "v": .auswahl, "a": .pfeil, "l": .linie, "r": .rechteck, "e": .ellipse,
-                "p": .stift, "h": .marker, "t": .text, "b": .pixel, "n": .nummer, "c": .zuschnitt,
+                "p": .stift, "h": .marker, "t": .text, "b": .pixel, "u": .weichzeichnen,
+                "n": .nummer, "c": .zuschnitt,
             ]
             if let z = e.charactersIgnoringModifiers?.lowercased(), let w = kuerzel[z] {
                 self.flaeche.werkzeug = w
@@ -194,8 +207,9 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
             ziel = h
         } else {
             Einstellungen.geteilt.ordnerSicherstellen()
-            ziel = Einstellungen.geteilt.bilderOrdner
-                .appendingPathComponent(Einstellungen.geteilt.dateiname(praefix: "Snap it"))
+            ziel = vorlage.map { Einstellungen.geteilt.freieDatei("\($0) bearbeitet") }
+                ?? Einstellungen.geteilt.bilderOrdner
+                    .appendingPathComponent(Einstellungen.geteilt.dateiname(praefix: "Snap it"))
         }
         do {
             try daten.write(to: ziel)
@@ -214,7 +228,8 @@ final class EditorFenster: NSWindowController, NSWindowDelegate, ZeichenflaecheD
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
         panel.directoryURL = Einstellungen.geteilt.bilderOrdner
-        panel.nameFieldStringValue = Einstellungen.geteilt.dateiname(praefix: "Snap it")
+        panel.nameFieldStringValue = vorlage.map { "\($0) bearbeitet.png" }
+            ?? Einstellungen.geteilt.dateiname(praefix: "Snap it")
         panel.beginSheetModal(for: window!) { antwort in
             guard antwort == .OK, let url = panel.url else { return }
             try? daten.write(to: url)

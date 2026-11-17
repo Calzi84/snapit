@@ -88,12 +88,12 @@ enum Render {
             ]
             (f.text as NSString).draw(at: f.p1, withAttributes: attr)
 
-        case .pixel:
-            guard let px = doc.pixelBild else { return }
+        case .pixel, .weichzeichnen:
             let r = f.rechteck
-            guard r.width > 2, r.height > 2 else { return }
+            guard r.width > 2, r.height > 2,
+                  let gefiltert = doc.effektBild(f.werkzeug, staerke: f.staerke) else { return }
             NSBezierPath(rect: r).setClip()
-            px.draw(in: CGRect(origin: .zero, size: doc.groesse))
+            gefiltert.draw(in: CGRect(origin: .zero, size: doc.groesse))
 
         case .nummer:
             let r = f.radiusNummer

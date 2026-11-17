@@ -3,6 +3,8 @@ import AppKit
 protocol ZeichenflaecheDelegat: AnyObject {
     func zustandGeaendert()
     func werkzeugZuruecksetzen()
+    /// Stärke der neu ausgewählten Form im Maß des Reglers, oder nil.
+    func auswahlGeaendert(staerke: CGFloat?)
 }
 
 /// Die Zeichenfläche: zeigt das Bild und nimmt alle Mauseingaben entgegen.
@@ -25,7 +27,19 @@ final class Zeichenflaeche: NSView {
     private var staerke: CGFloat { staerkeUI * doc.faktor }
 
     private var aktuelle: Form?
-    private var auswahl: Form? { didSet { needsDisplay = true } }
+    private var auswahl: Form? {
+        didSet {
+            needsDisplay = true
+            guard auswahl !== oldValue else { return }
+            // Regler auf den Wert der Auswahl stellen, damit sie beim ersten
+            // Antippen nicht auf einen fremden Wert springt
+            if let a = auswahl, a.werkzeug != .marker {
+                delegat?.auswahlGeaendert(staerke: a.staerke / doc.faktor)
+            } else {
+                delegat?.auswahlGeaendert(staerke: nil)
+            }
+        }
+    }
     private var zieheAb: CGPoint = .zero
     private var hatGemerkt = false
 
@@ -147,7 +161,7 @@ final class Zeichenflaeche: NSView {
             // den Rahmen um ihre Fläche.
             let umriss: CGRect?
             switch a.werkzeug {
-            case .rechteck, .ellipse, .pixel: umriss = nachView(a.rechteck)
+            case .rechteck, .ellipse, .pixel, .weichzeichnen: umriss = nachView(a.rechteck)
             case .stift:                      umriss = punkteRahmen(a).map { nachView($0) }
             case .linie, .pfeil, .marker:     umriss = nil
             default:
@@ -371,11 +385,36 @@ final class Zeichenflaeche: NSView {
 
     var hatAuswahl: Bool { auswahl != nil }
 
+    /// Farbe setzen — und die ausgewählte Form gleich mit umfärben.
+    func farbeSetzen(_ c: NSColor) {
+        farbe = c
+        guard let a = auswahl, !a.werkzeug.istEffekt else { return }
+        doc.merken()
+        a.farbe = c
+        delegat?.zustandGeaendert()
+        needsDisplay = true
+    }
+
+    /// Stärke setzen. Bei ausgewählter Form wirkt der Regler sofort auf sie —
+    /// nur so lässt sich die Pixelgröße einer gesetzten Fläche einstellen.
+    /// `beginn` markiert den ersten Schritt eines Zugs; nur dort wird für die
+    /// Rücknahme gemerkt, sonst stünde jeder Zwischenwert im Verlauf.
+    func staerkeSetzen(_ wert: CGFloat, beginn: Bool) {
+        staerkeUI = wert
+        // Der Marker bleibt außen vor: seine Dicke stammt aus der erkannten
+        // Textzeile und würde sonst vom Regler überschrieben.
+        guard let a = auswahl, a.werkzeug != .marker else { return }
+        if beginn { doc.merken() }
+        a.staerke = wert * doc.faktor
+        delegat?.zustandGeaendert()
+        needsDisplay = true
+    }
+
     // MARK: – Anfasser
 
     private func griffe(_ f: Form) -> [Griff] {
         switch f.werkzeug {
-        case .rechteck, .ellipse, .pixel:
+        case .rechteck, .ellipse, .pixel, .weichzeichnen:
             return griffeUm(f.rechteck, mitKanten: true)
         case .stift:
             guard let r = punkteRahmen(f) else { return [] }

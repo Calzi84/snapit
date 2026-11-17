@@ -48,6 +48,13 @@ enum Fensterwacht {
         appMenue.addItem(withTitle: "Snap it beenden", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appEintrag.submenu = appMenue
 
+        // Ablage: Öffnen läuft über die Responder-Kette bis zum App-Delegaten
+        let ablageEintrag = NSMenuItem()
+        haupt.addItem(ablageEintrag)
+        let ablageMenue = NSMenu(title: "Ablage")
+        ablageMenue.addItem(withTitle: "Bild öffnen …", action: #selector(AppDelegate.bildOeffnen), keyEquivalent: "o")
+        ablageEintrag.submenu = ablageMenue
+
         let fensterEintrag = NSMenuItem()
         haupt.addItem(fensterEintrag)
         let fensterMenue = NSMenu(title: "Fenster")

@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 
 /// Fährt die Zeichenfläche mit erzeugten Mausereignissen ab. Das findet
 /// Fehler in der Bedienung, die eine reine Layoutaufnahme nicht zeigt.
@@ -50,6 +51,21 @@ enum Selbsttest {
         flaeche.mouseUp(with: ereignis(.leftMouseUp, b, in: flaeche))
     }
 
+    /// Zahl verschiedener Farben entlang einer Zeile — grobe Pixel ergeben
+    /// lange Strecken gleicher Farbe und damit wenige Werte.
+    private static func farbvielfalt(_ bild: NSImage, zeile: Int) -> Int {
+        guard let tiff = bild.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff), zeile < rep.pixelsHigh else { return 0 }
+        var farben = Set<UInt32>()
+        for x in 0..<rep.pixelsWide {
+            guard let c = rep.colorAt(x: x, y: zeile)?.usingColorSpace(.sRGB) else { continue }
+            let r = UInt32(c.redComponent * 255), g = UInt32(c.greenComponent * 255)
+            let b = UInt32(c.blueComponent * 255)
+            farben.insert(r << 16 | g << 8 | b)
+        }
+        return farben.count
+    }
+
     static func starten(_ quelle: URL, ziel: URL) -> Int {
         guard let doc = Aufnahme.laden(quelle) else {
             print("Bild nicht lesbar"); return 1
@@ -74,7 +90,7 @@ enum Selbsttest {
                flaeche.bildRect.maxY <= flaeche.bounds.height - Theme.leisteHoehe)
 
         print("\nZeichenwerkzeuge")
-        for w in [Werkzeug.pfeil, .linie, .rechteck, .ellipse, .stift, .marker, .pixel] {
+        for w in [Werkzeug.pfeil, .linie, .rechteck, .ellipse, .stift, .marker, .pixel, .weichzeichnen] {
             let vorher = doc.formen.count
             flaeche.werkzeug = w
             flaeche.auswahlAufheben()
@@ -200,6 +216,92 @@ enum Selbsttest {
             pruefe("Marker für die Größenprüfung angelegt", false)
         }
         flaeche.auswahlAufheben()
+
+        print("\nVerpixeln und Weichzeichnen")
+        let zeile = Int(doc.groesse.height / 2)
+        if let fein = doc.effektBild(.pixel, staerke: 2),
+           let grob = doc.effektBild(.pixel, staerke: 16) {
+            let vf = farbvielfalt(fein, zeile: zeile), vg = farbvielfalt(grob, zeile: zeile)
+            pruefe("feine Pixel zeigen mehr Einzelheiten als grobe (\(vf) gegen \(vg) Farben)", vf > vg * 2)
+        } else {
+            pruefe("Verpixeln liefert ein Bild", false)
+        }
+        if let weich = doc.effektBild(.weichzeichnen, staerke: 10),
+           let tiff = weich.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff) {
+            // Ohne clampedToExtent wäre der Rand durchsichtig und würde hell
+            let ecke = rep.colorAt(x: 0, y: 0)?.alphaComponent ?? 0
+            let kante = rep.colorAt(x: rep.pixelsWide - 1, y: rep.pixelsHigh / 2)?.alphaComponent ?? 0
+            pruefe("Weichzeichnen hat keinen durchsichtigen Rand", ecke > 0.99 && kante > 0.99)
+            pruefe("Weichzeichnen behält die Bildgröße",
+                   rep.pixelsWide == Int(doc.groesse.width) && rep.pixelsHigh == Int(doc.groesse.height))
+        } else {
+            pruefe("Weichzeichnen liefert ein Bild", false)
+        }
+
+        // Regler wirkt auf die ausgewählte Fläche, Rücknahme in einem Schritt
+        flaeche.auswahlAufheben()
+        flaeche.staerkeSetzen(4, beginn: false)
+        flaeche.werkzeug = .pixel
+        ziehen(flaeche, von: CGPoint(x: mitte.x - 70, y: mitte.y + 100),
+               nach: CGPoint(x: mitte.x + 70, y: mitte.y + 160))
+        if let flaecheForm = doc.formen.last, flaecheForm.werkzeug == .pixel, flaecheForm === doc.formen.last {
+            let vorher = flaecheForm.staerke
+            let stand = doc.formen.count
+            flaeche.staerkeSetzen(9, beginn: true)
+            flaeche.staerkeSetzen(12, beginn: false)
+            flaeche.staerkeSetzen(14, beginn: false)
+            pruefe("Regler ändert die Pixelgröße der ausgewählten Fläche",
+                   abs(flaecheForm.staerke - 14 * doc.faktor) < 0.01)
+            doc.zurueckNehmen()
+            let nachher = doc.formen.last?.staerke ?? -1
+            pruefe("ein Zurücknehmen stellt die alte Pixelgröße her",
+                   abs(nachher - vorher) < 0.01 && doc.formen.count == stand)
+        } else {
+            pruefe("Pixelfläche für die Reglerprüfung angelegt", false)
+        }
+        flaeche.auswahlAufheben()
+
+        print("\nVerdeckter Text bleibt unlesbar")
+        // Die schwächste Stufe ist die gefährliche: Wer fein verpixelt, will
+        // trotzdem, dass der Name weg ist. Die Kontrolle zuerst — liest die
+        // Texterkennung schon den offenen Text nicht, wäre jedes „0 Wörter"
+        // unten wertlos.
+        for pt in [13.0, 24.0] as [CGFloat] {
+            let offen = Lesbarkeit.probebild(punktgroesse: pt)
+            let kontrolle = Lesbarkeit.treffer(Lesbarkeit.lesen(offen))
+            pruefe("Kontrolle: \(Int(pt)) pt offen lesbar (\(kontrolle.gefunden)/\(kontrolle.von))",
+                   kontrolle.gefunden == kontrolle.von)
+            for art in [Werkzeug.pixel, .weichzeichnen] {
+                guard let v = Lesbarkeit.verdeckt(offen, art: art, stufe: 1) else {
+                    pruefe("\(art.rawValue) Stufe 1 gerendert", false); continue
+                }
+                let t = Lesbarkeit.treffer(Lesbarkeit.lesen(v))
+                pruefe("\(art.rawValue) auf Stufe 1, \(Int(pt)) pt: kein Wort lesbar (\(t.gefunden))",
+                       t.gefunden == 0)
+            }
+        }
+
+        print("\nFremde Bilder öffnen")
+        let gross = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4000, pixelsHigh: 2600,
+                                     bitsPerSample: 8, samplesPerPixel: 3, hasAlpha: false,
+                                     isPlanar: false, colorSpaceName: .deviceRGB,
+                                     bytesPerRow: 0, bitsPerPixel: 0)
+        let probeDatei = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("snapit-probe-\(UUID().uuidString).jpg")
+        if let g = gross, let jpg = g.representation(using: .jpeg, properties: [:]),
+           (try? jpg.write(to: probeDatei)) != nil {
+            let alsFoto = Aufnahme.laden(probeDatei, fremd: true)
+            let alsAufnahme = Aufnahme.laden(probeDatei)
+            pruefe("großes Foto bekommt kräftigere Striche (Faktor \(String(format: "%.1f", alsFoto?.faktor ?? 0)))",
+                   (alsFoto?.faktor ?? 0) >= 2.4)
+            pruefe("Bildgröße bleibt beim Öffnen erhalten", alsFoto?.groesse == CGSize(width: 4000, height: 2600))
+            pruefe("eigene Aufnahmen behalten ihren Faktor", (alsAufnahme?.faktor ?? 0) == 1)
+            try? FileManager.default.removeItem(at: probeDatei)
+        } else {
+            pruefe("Probebild geschrieben", false)
+        }
+        pruefe("Öffnen kennt PNG, JPEG und HEIC",
+               [UTType.png, .jpeg, .heic].allSatisfy { Aufnahme.oeffenbareTypen.contains($0) })
 
         print("\nZwischenablage")
         let probe = NSPasteboard(name: NSPasteboard.Name("SnapItSelbsttest"))

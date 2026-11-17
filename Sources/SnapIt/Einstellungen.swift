@@ -97,6 +97,19 @@ final class Einstellungen {
         return "\(praefix) \(f.string(from: Date())).png"
     }
 
+    /// Freier Dateiname im Bilder-Ordner — vorhandene Dateien werden nicht
+    /// überschrieben, sondern es wird durchnummeriert.
+    func freieDatei(_ name: String) -> URL {
+        let ordner = bilderOrdner
+        var ziel = ordner.appendingPathComponent("\(name).png")
+        var zaehler = 2
+        while FileManager.default.fileExists(atPath: ziel.path) {
+            ziel = ordner.appendingPathComponent("\(name) \(zaehler).png")
+            zaehler += 1
+        }
+        return ziel
+    }
+
     private func melden() {
         NotificationCenter.default.post(name: Einstellungen.geaendert, object: nil)
     }

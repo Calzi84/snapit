@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import CoreGraphics
 
 /// Bildschirmaufnahme über das Systemwerkzeug screencapture. Das erspart
@@ -62,11 +63,21 @@ enum Aufnahme {
     }
 
     /// Lädt ein PNG und merkt sich, wie viele Pixel auf einen Punkt kommen.
-    static func laden(_ url: URL) -> Dokument? {
+    /// Lädt ein Bild aus einer Datei.
+    ///
+    /// `fremd` steht für Bilder, die nicht von Snap it selbst stammen — Fotos,
+    /// Grafiken, Downloads. Die tragen meist keine Retina-Angabe, ein Foto mit
+    /// 4000 Pixeln Kantenlänge käme dann mit Faktor 1 an, und jeder Strich wäre
+    /// in der verkleinerten Ansicht kaum zu sehen. Für sie richtet sich der
+    /// Faktor deshalb nach der Bildgröße.
+    static func laden(_ url: URL, fremd: Bool = false) -> Dokument? {
         guard let daten = try? Data(contentsOf: url),
               let rep = NSBitmapImageRep(data: daten) else { return nil }
-        return ausRep(rep)
+        return ausRep(rep, nachGroesse: fremd)
     }
+
+    /// Bildformate, die sich öffnen lassen.
+    static let oeffenbareTypen: [UTType] = [.png, .jpeg, .heic, .tiff, .gif, .bmp, .webP]
 
     static func ausZwischenablage() -> Dokument? {
         let pb = NSPasteboard.general
@@ -75,10 +86,16 @@ enum Aufnahme {
         return ausRep(rep)
     }
 
-    private static func ausRep(_ rep: NSBitmapImageRep) -> Dokument? {
+    private static func ausRep(_ rep: NSBitmapImageRep, nachGroesse: Bool = false) -> Dokument? {
         let pw = CGFloat(rep.pixelsWide), ph = CGFloat(rep.pixelsHigh)
         guard pw > 0, ph > 0 else { return nil }
-        let faktor = rep.size.width > 0 ? (pw / rep.size.width).rounded() : 2
+        var faktor = rep.size.width > 0 ? (pw / rep.size.width).rounded() : 2
+        if nachGroesse {
+            // Rund 1600 Punkte sind etwa das, was der Editor auf einem
+            // Laptopbildschirm zeigt; größere Bilder bekommen entsprechend
+            // kräftigere Striche.
+            faktor = max(faktor, max(pw, ph) / 1600)
+        }
         rep.size = NSSize(width: pw, height: ph)
         let bild = NSImage(size: NSSize(width: pw, height: ph))
         bild.addRepresentation(rep)

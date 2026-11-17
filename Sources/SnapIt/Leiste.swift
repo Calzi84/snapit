@@ -149,7 +149,7 @@ final class Leiste: NSView {
 
     var beiWerkzeug: ((Werkzeug) -> Void)?
     var beiFarbe: ((Int) -> Void)?
-    var beiStaerke: ((CGFloat) -> Void)?
+    var beiStaerke: ((CGFloat, Bool) -> Void)?
     var beiAktion: ((Aktion) -> Void)?
 
     private let glas: NSView
@@ -240,6 +240,7 @@ final class Leiste: NSView {
     private func symbolListe(_ w: Werkzeug) -> [String] {
         switch w {
         case .pixel:  return ["squareshape.split.3x3", "square.grid.3x3.fill", "mosaic"]
+        case .weichzeichnen: return ["drop.halffull", "drop.fill", "aqi.medium"]
         case .stift:  return ["pencil.tip", "pencil"]
         case .nummer: return ["1.circle", "number.circle"]
         default:      return [w.symbol]
@@ -285,7 +286,16 @@ final class Leiste: NSView {
     @objc private func staerkeGeaendert() {
         let v = regler.doubleValue.rounded()
         staerkeZahl.stringValue = "\(Int(v))"
-        beiStaerke?(CGFloat(v))
+        // Der erste Schritt eines Zugs kommt mit dem Mausklick. Daran erkennt
+        // die Zeichenfläche, wann sie für die Rücknahme merken muss.
+        let beginn = NSApp.currentEvent?.type == .leftMouseDown
+        beiStaerke?(CGFloat(v), beginn)
+    }
+
+    /// Regler auf einen Wert stellen, etwa wenn eine Form ausgewählt wird.
+    func staerkeAnzeigen(_ wert: CGFloat) {
+        regler.doubleValue = Double(wert)
+        staerkeZahl.stringValue = "\(Int(wert.rounded()))"
     }
 
     @objc private func aktionGewaehlt(_ s: NSButton) {
@@ -308,7 +318,7 @@ final class Leiste: NSView {
     }
 
     /// Kleinste Breite, bei der sich nichts überlappt.
-    static let mindestBreite: CGFloat = 1124
+    static let mindestBreite: CGFloat = 1158
 
     override func layout() {
         super.layout()

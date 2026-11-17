@@ -63,10 +63,19 @@ Das Symbol sitzt oben rechts in der Menüleiste.
 
 Werkzeuge über die Leiste unten oder direkt per Taste: `V` Auswahl · `A` Pfeil ·
 `L` Linie · `R` Rechteck · `E` Ellipse · `P` Freihand · `H` Marker · `T` Text ·
-`B` Verpixeln · `N` Nummer · `C` Zuschneiden.
+`B` Verpixeln · `U` Weichzeichnen · `N` Nummer · `C` Zuschneiden.
+
+**Verpixeln und Weichzeichnen** lassen sich in der Stärke einstellen: Fläche
+aufziehen, dann den Regler unten schieben — die ausgewählte Fläche ändert sich
+sofort mit. Auch die feinste Stufe macht Bildschirmtext unlesbar.
 
 Beim Ziehen hält `⇧` Linien auf 45° und macht Rechtecke quadratisch. Der Marker
 rastet auf Textzeilen ein und läuft gerade, auch wenn die Hand wackelt.
+
+**Bilder öffnen:** Über das Menüleisten-Symbol „Bild öffnen …", im Finder per
+Rechtsklick „Öffnen mit › Snap it", oder Bilder aufs Programmsymbol ziehen.
+Beim Sichern entsteht eine neue Datei „<Name> bearbeitet" — das Original
+bleibt unverändert.
 
 Screenshots und Ideen landen unter **Bilder › Snap it**. Beides lässt sich in
 den Einstellungen ändern.

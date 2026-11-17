@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menue.addItem(punkt("Fenster aufnehmen", #selector(fenster)))
         menue.addItem(punkt("Ganzer Bildschirm", #selector(vollbild)))
         menue.addItem(.separator())
+        menue.addItem(punkt("Bild öffnen …", #selector(bildOeffnen)))
         menue.addItem(punkt("Aus Zwischenablage öffnen", #selector(ausZwischenablage)))
         menue.addItem(punkt("Ideen …", #selector(ideenZeigen)))
         menue.addItem(punkt("Ideen-Ordner öffnen", #selector(ideenOrdnerOeffnen)))
@@ -94,6 +95,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Aufnahme.starten(art) { doc in
             guard let doc else { return }   // Esc gedrückt oder nichts ausgewählt
             EditorFenster(doc: doc).zeigen()
+        }
+    }
+
+    /// Öffnet ein Bild aus einer Datei. Nicht privat: Das Hauptmenü erreicht
+    /// die Methode über die Responder-Kette.
+    @objc func bildOeffnen() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = Aufnahme.oeffenbareTypen
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.message = "Bilder zum Bearbeiten in Snap it öffnen"
+        panel.prompt = "Öffnen"
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK else { return }
+        oeffnen(panel.urls)
+    }
+
+    /// Bilder, die im Finder per „Öffnen mit", Doppelklick oder durch Ziehen
+    /// aufs Programmsymbol an Snap it gehen.
+    func application(_ sender: NSApplication, open urls: [URL]) {
+        oeffnen(urls)
+    }
+
+    private func oeffnen(_ urls: [URL]) {
+        var nichtLesbar: [String] = []
+        for url in urls {
+            guard let doc = Aufnahme.laden(url, fremd: true) else {
+                nichtLesbar.append(url.lastPathComponent)
+                continue
+            }
+            let fenster = EditorFenster(doc: doc)
+            fenster.vorlage = url.deletingPathExtension().lastPathComponent
+            fenster.zeigen()
+        }
+        if !nichtLesbar.isEmpty {
+            hinweis("Nicht als Bild lesbar",
+                    nichtLesbar.joined(separator: ", "))
         }
     }
 
